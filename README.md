@@ -44,6 +44,13 @@ and opens the web app in your browser. Ctrl+C stops both servers.
 Re-running `npm start` later is safe and fast (it skips `.env` creation if
 it already exists, and the database setup is idempotent).
 
+A demo login is seeded automatically so you don't need to register on
+camera:
+
+- **Email:** `demo@novaspin.test`
+- **Password:** `demo1234`
+- Comes pre-loaded with a $50,000 fake balance.
+
 ### Running the pieces separately
 
 If you'd rather run things by hand — see `apps/api/README.md` and

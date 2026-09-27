@@ -1,6 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import argon2 from "argon2";
 
 const prisma = new PrismaClient();
+
+const DEMO_EMAIL = "demo@novaspin.test";
+const DEMO_PASSWORD = "demo1234";
+const DEMO_BALANCE_CENTS = 5_000_000; // $50,000 fake balance for a flashy demo
 
 const providers = ["Nova Reels", "Cobalt Play", "Ironclad Games", "Skyline Studios"];
 const categories = ["Slots", "Live Casino", "Table Games", "Jackpots"];
@@ -38,6 +43,30 @@ async function main() {
   }
 
   console.log(`Seeded ${titles.length} placeholder games.`);
+
+  const existingDemo = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } });
+  if (!existingDemo) {
+    const passwordHash = await argon2.hash(DEMO_PASSWORD);
+    await prisma.user.create({
+      data: {
+        email: DEMO_EMAIL,
+        passwordHash,
+        displayName: "Demo Player",
+        referralCode: "DEMO0001",
+        balanceCents: DEMO_BALANCE_CENTS,
+        transactions: {
+          create: {
+            type: "WELCOME_BONUS",
+            amountCents: DEMO_BALANCE_CENTS,
+            note: "Seeded demo account balance (fake, no real value)",
+          },
+        },
+      },
+    });
+    console.log(`Seeded demo login -> email: ${DEMO_EMAIL} / password: ${DEMO_PASSWORD}`);
+  } else {
+    console.log(`Demo login already exists -> email: ${DEMO_EMAIL} / password: ${DEMO_PASSWORD}`);
+  }
 }
 
 main()

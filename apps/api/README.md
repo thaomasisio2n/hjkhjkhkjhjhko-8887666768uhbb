@@ -13,6 +13,10 @@ npm run dev
 
 Runs on `http://localhost:8787` by default.
 
+The seed also creates a demo login: `demo@novaspin.test` / `demo1234`
+(pre-loaded with a $50,000 fake balance) so you don't have to register a
+fresh account every time.
+
 ## Endpoints
 
 - `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
