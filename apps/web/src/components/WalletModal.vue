@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import { useWalletStore } from "../stores/wallet";
+import { useToastStore } from "../stores/toast";
 import { useUiStore } from "../stores/ui";
 import { formatUsd } from "../lib/format";
 import { txMeta } from "../lib/transactions";
@@ -12,6 +13,7 @@ type Method = "crypto_btc" | "crypto_eth" | "crypto_usdt";
 
 const wallet = useWalletStore();
 const ui = useUiStore();
+const toast = useToastStore();
 
 const tab = ref<"deposit" | "overview">("deposit");
 const amount = ref<number | "">(100);
@@ -58,6 +60,7 @@ async function deposit() {
   try {
     await wallet.topup(amountCents.value, method.value);
     credited.value = amountCents.value;
+    toast.push(`${formatUsd(amountCents.value)} credited to your demo balance`, "success", "wallet");
   } catch {
     error.value = "Couldn't reach the demo API. Is it running on port 8787?";
   }
@@ -109,7 +112,7 @@ async function deposit() {
           </p>
           <div class="mt-5 rounded-lg bg-ink-900 p-4">
             <p class="text-xs font-semibold uppercase tracking-wide text-ink-400">New demo balance</p>
-            <p class="mt-1 text-2xl font-extrabold tabular-nums">{{ formatUsd(wallet.balanceCents) }}</p>
+            <p class="mt-1 text-2xl font-extrabold tabular-nums">{{ ui.money(wallet.balanceCents) }}</p>
           </div>
           <div class="mt-5 grid grid-cols-2 gap-3">
             <button type="button" class="btn-ghost" @click="credited = null">Deposit again</button>
@@ -122,7 +125,7 @@ async function deposit() {
           <div class="flex items-center justify-between rounded-lg bg-ink-900 px-4 py-3">
             <span class="text-sm font-semibold text-ink-300">Balance</span>
             <span class="flex items-center gap-2 font-bold tabular-nums">
-              {{ formatUsd(wallet.balanceCents) }} <CoinIcon coin="usd" :size="16" />
+              {{ ui.money(wallet.balanceCents) }} <CoinIcon coin="usd" :size="16" />
             </span>
           </div>
 
@@ -195,7 +198,7 @@ async function deposit() {
         <div v-else class="space-y-4">
           <div class="relative overflow-hidden rounded-lg bg-gradient-to-br from-blue to-[#0a3f86] p-5">
             <p class="text-xs font-semibold uppercase tracking-wide text-white/70">Demo balance</p>
-            <p class="mt-1 text-3xl font-extrabold tabular-nums">{{ formatUsd(wallet.balanceCents) }}</p>
+            <p class="mt-1 text-3xl font-extrabold tabular-nums">{{ ui.money(wallet.balanceCents) }}</p>
             <CoinIcon coin="usd" :size="96" class="absolute -bottom-6 -right-4 opacity-20" />
           </div>
           <div>
@@ -212,7 +215,7 @@ async function deposit() {
                   <Icon :name="txMeta(tx.type).icon" :size="15" />
                 </span>
                 <span class="flex-1 font-semibold">{{ txMeta(tx.type).label }}</span>
-                <span class="font-bold tabular-nums text-accent">+{{ formatUsd(tx.amountCents) }}</span>
+                <span class="font-bold tabular-nums text-accent">+{{ ui.money(tx.amountCents) }}</span>
               </div>
             </div>
           </div>

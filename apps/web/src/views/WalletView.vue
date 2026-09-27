@@ -2,7 +2,7 @@
 import { computed, onMounted } from "vue";
 import { useWalletStore } from "../stores/wallet";
 import { useUiStore } from "../stores/ui";
-import { formatDate, formatUsd } from "../lib/format";
+import { formatDate } from "../lib/format";
 import { txMeta } from "../lib/transactions";
 import CoinIcon from "../components/CoinIcon.vue";
 import Icon from "../components/Icon.vue";
@@ -40,7 +40,7 @@ const bonuses = computed(() =>
     <div class="grid gap-4 md:grid-cols-3">
       <div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue to-[#0a3f86] p-6 shadow-card">
         <p class="text-xs font-semibold uppercase tracking-wide text-white/70">Total balance</p>
-        <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ formatUsd(wallet.balanceCents) }}</p>
+        <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ ui.money(wallet.balanceCents) }}</p>
         <p class="mt-1 text-xs font-semibold text-white/60">USD &middot; demo funds</p>
         <CoinIcon coin="usd" :size="120" class="absolute -bottom-8 -right-6 opacity-20" />
       </div>
@@ -48,14 +48,14 @@ const bonuses = computed(() =>
         <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-400">
           <Icon name="wallet" :size="14" /> Demo deposits
         </p>
-        <p class="mt-2 text-2xl font-extrabold tabular-nums">{{ formatUsd(deposited) }}</p>
+        <p class="mt-2 text-2xl font-extrabold tabular-nums">{{ ui.money(deposited) }}</p>
         <p class="mt-1 text-xs text-ink-400">Simulated crypto top-ups</p>
       </div>
       <div class="panel p-6">
         <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-400">
           <Icon name="gift" :size="14" /> Bonuses
         </p>
-        <p class="mt-2 text-2xl font-extrabold tabular-nums">{{ formatUsd(bonuses) }}</p>
+        <p class="mt-2 text-2xl font-extrabold tabular-nums">{{ ui.money(bonuses) }}</p>
         <p class="mt-1 text-xs text-ink-400">Welcome + referral credits</p>
       </div>
     </div>
@@ -86,7 +86,7 @@ const bonuses = computed(() =>
             <p class="truncate text-xs text-ink-300 sm:text-sm">{{ tx.note ?? "—" }}</p>
           </div>
           <span class="hidden text-ink-300 sm:block">{{ formatDate(tx.createdAt) }}</span>
-          <span class="row-span-2 text-right font-bold tabular-nums text-accent sm:row-span-1">+{{ formatUsd(tx.amountCents) }}</span>
+          <span class="row-span-2 text-right font-bold tabular-nums text-accent sm:row-span-1">+{{ ui.money(tx.amountCents) }}</span>
           <span class="text-xs text-ink-400 sm:hidden">{{ formatDate(tx.createdAt) }}</span>
         </div>
       </div>

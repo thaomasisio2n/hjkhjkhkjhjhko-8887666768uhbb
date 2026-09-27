@@ -4,7 +4,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import { useWalletStore } from "../../stores/wallet";
 import { useUiStore } from "../../stores/ui";
-import { formatUsd, initials } from "../../lib/format";
+import { initials } from "../../lib/format";
 import CoinIcon from "../CoinIcon.vue";
 import Icon from "../Icon.vue";
 import Logo from "../Logo.vue";
@@ -20,11 +20,6 @@ onMounted(() => {
   wallet.fetchBalance().catch(() => {});
   if (!auth.user) auth.fetchMe().catch(() => {});
 });
-
-function search() {
-  router.push({ name: "lobby" });
-  ui.focusSearch();
-}
 
 function logout() {
   menuOpen.value = false;
@@ -45,7 +40,7 @@ function logout() {
           class="flex h-10 min-w-0 items-center gap-2 rounded-l-md bg-ink-950 px-3 text-sm font-bold tabular-nums transition hover:bg-black/60 sm:px-4"
           @click="ui.openWallet()"
         >
-          <span class="truncate">{{ formatUsd(wallet.balanceCents) }}</span>
+          <span class="truncate">{{ ui.money(wallet.balanceCents) }}</span>
           <CoinIcon coin="usd" :size="16" />
           <span class="hidden rounded bg-amber-400/15 px-1 py-px text-[9px] font-extrabold uppercase tracking-wider text-amber-300 md:inline">
             demo
@@ -61,10 +56,11 @@ function logout() {
         <button
           type="button"
           class="hidden h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold text-white transition hover:bg-ink-700 sm:flex"
-          @click="search"
+          @click="ui.openSearch()"
         >
           <Icon name="search" :size="18" class="text-ink-300" />
           <span class="hidden md:inline">Search</span>
+          <kbd class="hidden rounded border border-ink-600 px-1.5 text-[11px] font-bold text-ink-400 lg:inline">/</kbd>
         </button>
 
         <div class="relative">
@@ -101,6 +97,17 @@ function logout() {
               <RouterLink :to="{ name: 'lobby', query: { tab: 'favourites' } }" class="flex items-center gap-3 px-4 py-2 text-sm font-semibold hover:bg-slate-100" @click="menuOpen = false">
                 <Icon name="heart" :size="16" class="text-slate-500" /> Favourites
               </RouterLink>
+              <RouterLink :to="{ name: 'settings' }" class="flex items-center gap-3 px-4 py-2 text-sm font-semibold hover:bg-slate-100" @click="menuOpen = false">
+                <Icon name="settings" :size="16" class="text-slate-500" /> Settings
+              </RouterLink>
+              <button type="button" role="menuitemcheckbox" :aria-checked="ui.streamerMode"
+                class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm font-semibold hover:bg-slate-100" @click="ui.toggleStreamerMode()">
+                <Icon :name="ui.streamerMode ? 'eye-off' : 'eye'" :size="16" class="text-slate-500" />
+                <span class="flex-1">Streamer mode</span>
+                <span class="relative h-5 w-9 rounded-full transition" :class="ui.streamerMode ? 'bg-accent' : 'bg-slate-300'">
+                  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all" :class="ui.streamerMode ? 'left-[18px]' : 'left-0.5'" />
+                </span>
+              </button>
               <div class="my-1 border-t border-slate-200" />
               <button type="button" class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm font-semibold hover:bg-slate-100" @click="logout">
                 <Icon name="logout" :size="16" class="text-slate-500" /> Log out

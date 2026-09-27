@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useGamesStore, type Game } from "../stores/games";
 import { useUiStore } from "../stores/ui";
 import { sortCategories } from "../lib/categories";
+import { setTitle } from "../lib/title";
 import { PALETTES, type Emblem, type Palette } from "../lib/gameArt";
 import type { IconName } from "../lib/icons";
 import GameCard from "../components/GameCard.vue";
@@ -17,21 +18,16 @@ const route = useRoute();
 const router = useRouter();
 
 const query = ref("");
-const searchInput = ref<HTMLInputElement | null>(null);
 
-onMounted(() => {
-  games.fetchGames();
-  if (typeof route.query.q === "string") query.value = route.query.q;
-  if (ui.searchFocusTick) searchInput.value?.focus();
-});
+onMounted(() => games.fetchGames());
 
+// "View all" from the search overlay (or a provider link) arrives as ?q=.
 watch(
-  () => ui.searchFocusTick,
-  async () => {
-    await nextTick();
-    searchInput.value?.focus();
-    searchInput.value?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }
+  () => route.query.q,
+  (q) => {
+    if (typeof q === "string") query.value = q;
+  },
+  { immediate: true }
 );
 
 const categories = computed(() => sortCategories(Object.keys(games.byCategory)));
@@ -49,6 +45,16 @@ const tab = computed(() => {
 });
 
 const activeTab = computed(() => tabs.value.find((t) => t.slug === tab.value));
+
+// Guarded by route name: during the leave transition this view still reacts to
+// the next route, and must not overwrite that page's title.
+watch(
+  activeTab,
+  (t) => {
+    if (route.name === "lobby") setTitle(t && t.slug !== "lobby" ? t.label : "Casino");
+  },
+  { immediate: true }
+);
 
 function setTab(slug: string) {
   query.value = "";
@@ -159,7 +165,6 @@ const promos: {
       <div class="relative">
         <Icon name="search" :size="18" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
         <input
-          ref="searchInput"
           v-model="query"
           type="search"
           placeholder="Search your game"

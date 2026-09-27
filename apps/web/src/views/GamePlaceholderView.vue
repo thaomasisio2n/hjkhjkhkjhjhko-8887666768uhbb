@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { api } from "../lib/api";
 import { categoryMeta } from "../lib/categories";
+import { setTitle } from "../lib/title";
 import { useGamesStore, type Game } from "../stores/games";
 import { useUiStore } from "../stores/ui";
 import GameCover from "../components/GameCover.vue";
@@ -27,6 +28,7 @@ async function load(slug: string) {
   try {
     const { data } = await api.get(`/games/${slug}/launch`);
     game.value = data.game;
+    setTitle(data.game.title);
     ui.pushRecent(slug);
   } catch {
     notFound.value = true;
@@ -35,13 +37,8 @@ async function load(slug: string) {
   }
 }
 
-watch(
-  () => route.params.slug,
-  (slug) => {
-    if (typeof slug === "string") load(slug);
-  },
-  { immediate: true }
-);
+// App keys routed views by path, so every game gets a fresh instance.
+load(String(route.params.slug));
 games.fetchGames();
 
 const moreFromProvider = computed(() =>

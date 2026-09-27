@@ -123,6 +123,7 @@ export default async function authRoutes(app: FastifyInstance) {
       displayName: user.displayName,
       referralCode: user.referralCode,
       balanceCents: user.balanceCents,
+      createdAt: user.createdAt,
     };
   });
 }

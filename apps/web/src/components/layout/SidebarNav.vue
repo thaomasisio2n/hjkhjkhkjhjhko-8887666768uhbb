@@ -42,6 +42,7 @@ const groups = computed<NavItem[][]>(() => {
     [
       { label: "Wallet", icon: "wallet", to: { name: "wallet" }, active: route.name === "wallet" },
       { label: "Refer & Earn", icon: "users", to: { name: "referrals" }, active: route.name === "referrals" },
+      { label: "Settings", icon: "settings", to: { name: "settings" }, active: route.name === "settings" },
     ],
   ];
 });

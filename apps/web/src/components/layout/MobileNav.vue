@@ -14,23 +14,15 @@ const items = computed<{ label: string; icon: IconName; active: boolean; action:
   {
     label: "Casino",
     icon: "cherry",
-    active: route.name === "lobby" && !ui.mobileNavOpen,
+    active: route.name === "lobby" && !ui.mobileNavOpen && !ui.searchOpen,
     action: () => router.push({ name: "lobby" }),
   },
-  {
-    label: "Search",
-    icon: "search",
-    active: false,
-    action: () => {
-      router.push({ name: "lobby" });
-      ui.focusSearch();
-    },
-  },
+  { label: "Search", icon: "search", active: ui.searchOpen, action: () => ui.openSearch() },
   { label: "Wallet", icon: "wallet", active: ui.walletOpen, action: () => ui.openWallet() },
   {
     label: "Refer",
     icon: "users",
-    active: route.name === "referrals" && !ui.mobileNavOpen,
+    active: route.name === "referrals" && !ui.mobileNavOpen && !ui.searchOpen,
     action: () => router.push({ name: "referrals" }),
   },
 ]);

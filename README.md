@@ -23,8 +23,10 @@ an iframe, e.g. `?gameid=...&mode=demo&token=...`):
   crypto-casino lobby (dark navy theme, collapsible sidebar, balance +
   wallet button in the top bar, mobile bottom nav). Login/register, a game
   lobby with promo banners, search, category tabs and scrollable game rows,
-  favourites/recently played (stored in the browser), a game page with the
-  iframe slot left as a placeholder, a wallet page + a fake "crypto pay"
+  favourites/recently played (stored in the browser), a search overlay
+  (`/` or Ctrl+K), toast notifications, a settings page with a "streamer
+  mode" that masks every balance on screen (handy when recording), a 404
+  page, a game page with the iframe slot left as a placeholder, a wallet page + a fake "crypto pay"
   deposit modal that always instantly credits the balance (no blockchain,
   no processor — it's a demo button), and a referral dashboard (code,
   invited users, earned bonus). Game cover art is generated procedurally

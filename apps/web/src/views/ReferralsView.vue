@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { api } from "../lib/api";
-import { formatUsd, initials } from "../lib/format";
+import { useToastStore } from "../stores/toast";
+import { useUiStore } from "../stores/ui";
+import { initials } from "../lib/format";
 import { PALETTES } from "../lib/gameArt";
 import type { IconName } from "../lib/icons";
 import GameEmblem from "../components/GameEmblem.vue";
@@ -14,6 +16,8 @@ interface ReferralData {
   totalEarnedCents: number;
 }
 
+const ui = useUiStore();
+const toast = useToastStore();
 const data = ref<ReferralData | null>(null);
 const copied = ref<"link" | "code" | null>(null);
 
@@ -26,9 +30,10 @@ async function copy(value: string, what: "link" | "code") {
   try {
     await navigator.clipboard.writeText(value);
     copied.value = what;
+    toast.push(what === "link" ? "Referral link copied" : "Referral code copied", "success", "copy");
     setTimeout(() => (copied.value = null), 1500);
   } catch {
-    // clipboard access denied — non-critical for a demo
+    toast.push("Clipboard access was blocked by the browser", "error");
   }
 }
 
@@ -95,12 +100,12 @@ const steps: { icon: IconName; title: string; text: string }[] = [
         </div>
         <div class="panel p-5">
           <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-400"><Icon name="gift" :size="14" /> Earned (demo)</p>
-          <p class="mt-2 text-3xl font-extrabold tabular-nums text-accent">{{ formatUsd(data.totalEarnedCents) }}</p>
+          <p class="mt-2 text-3xl font-extrabold tabular-nums text-accent">{{ ui.money(data.totalEarnedCents) }}</p>
         </div>
         <div class="panel p-5">
           <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-400"><Icon name="trending" :size="14" /> Per referral</p>
           <p class="mt-2 text-3xl font-extrabold tabular-nums">
-            {{ data.invited.length ? formatUsd(Math.round(data.totalEarnedCents / data.invited.length)) : "—" }}
+            {{ data.invited.length ? ui.money(Math.round(data.totalEarnedCents / data.invited.length)) : "—" }}
           </p>
         </div>
       </div>

@@ -27,6 +27,7 @@ const year = new Date().getFullYear();
             <li><RouterLink :to="{ name: 'referrals' }" class="transition hover:text-white">Refer &amp; Earn</RouterLink></li>
             <li><RouterLink :to="{ name: 'lobby', query: { tab: 'favourites' } }" class="transition hover:text-white">Favourites</RouterLink></li>
             <li><RouterLink :to="{ name: 'lobby', query: { tab: 'recent' } }" class="transition hover:text-white">Recently played</RouterLink></li>
+            <li><RouterLink :to="{ name: 'settings' }" class="transition hover:text-white">Settings</RouterLink></li>
           </ul>
         </div>
         <div class="col-span-2 sm:col-span-1">
