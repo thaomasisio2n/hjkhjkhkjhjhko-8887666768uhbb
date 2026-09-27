@@ -59,7 +59,17 @@ camera:
 
 - **Email:** `demo@novaspin.test`
 - **Password:** `demo1234`
-- Comes pre-loaded with a $50,000 fake balance.
+- Comes pre-loaded with a $50,000 fake balance, plus three seeded friends it
+  "invited" (so the Refer & Earn page isn't empty) and their $5,000 demo
+  referral bonuses each.
+- The friends can log in too: `friend1@novaspin.test` … `friend3@novaspin.test`,
+  same password.
+
+To show the referral flow live, copy the link from **Refer & Earn** (e.g.
+`http://localhost:5173/register?ref=DEMO0001`), open it in a private window
+and register: the form confirms who invited you, the new account gets the
+demo welcome bonus and the referrer's dashboard picks up the new friend.
+Referral links are built from `WEB_ORIGIN` in `apps/api/.env`.
 
 ### Running the pieces separately
 

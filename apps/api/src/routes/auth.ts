@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import argon2 from "argon2";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { REFERRAL_BONUS_CENTS, WELCOME_BONUS_CENTS, normalizeReferralCode } from "../config.js";
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -15,16 +16,14 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
-const WELCOME_BONUS_CENTS = Number(process.env.WELCOME_BONUS_CENTS ?? 1_000_000);
-const REFERRAL_BONUS_CENTS = Number(process.env.REFERRAL_BONUS_CENTS ?? 500_000);
-
 export default async function authRoutes(app: FastifyInstance) {
   app.post("/auth/register", async (req, reply) => {
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
-    const { email, password, displayName, referralCode } = parsed.data;
+    const { email, password, displayName } = parsed.data;
+    const referralCode = normalizeReferralCode(parsed.data.referralCode);
 
     const existing = await app.prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -41,40 +40,45 @@ export default async function authRoutes(app: FastifyInstance) {
 
     const passwordHash = await argon2.hash(password);
 
-    const user = await app.prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        displayName,
-        referralCode: nanoid(8).toUpperCase(),
-        referredById: referredBy?.id,
-        balanceCents: WELCOME_BONUS_CENTS,
-        transactions: {
-          create: {
-            type: "WELCOME_BONUS",
-            amountCents: WELCOME_BONUS_CENTS,
-            note: "Demo welcome bonus (fake balance, no real value)",
+    // New account and the referrer's bonus land together or not at all.
+    const user = await app.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          displayName,
+          referralCode: nanoid(8).toUpperCase(),
+          referredById: referredBy?.id,
+          balanceCents: WELCOME_BONUS_CENTS,
+          transactions: {
+            create: {
+              type: "WELCOME_BONUS",
+              amountCents: WELCOME_BONUS_CENTS,
+              note: referredBy
+                ? `Demo welcome bonus, invited by ${referredBy.displayName} (fake balance, no real value)`
+                : "Demo welcome bonus (fake balance, no real value)",
+            },
           },
         },
-      },
-    });
+      });
 
-    if (referredBy) {
-      await app.prisma.$transaction([
-        app.prisma.user.update({
+      if (referredBy) {
+        await tx.user.update({
           where: { id: referredBy.id },
           data: { balanceCents: { increment: REFERRAL_BONUS_CENTS } },
-        }),
-        app.prisma.transaction.create({
+        });
+        await tx.transaction.create({
           data: {
             userId: referredBy.id,
             type: "REFERRAL_BONUS",
             amountCents: REFERRAL_BONUS_CENTS,
             note: `Referral bonus for inviting ${displayName}`,
           },
-        }),
-      ]);
-    }
+        });
+      }
+
+      return created;
+    });
 
     const token = app.jwt.sign({ sub: user.id });
     return reply.code(201).send({

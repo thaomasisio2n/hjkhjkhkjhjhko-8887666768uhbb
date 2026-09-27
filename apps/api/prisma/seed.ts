@@ -1,11 +1,20 @@
 import { PrismaClient } from "@prisma/client";
 import argon2 from "argon2";
+import { REFERRAL_BONUS_CENTS, WELCOME_BONUS_CENTS } from "../src/config.js";
 
 const prisma = new PrismaClient();
 
 const DEMO_EMAIL = "demo@novaspin.test";
 const DEMO_PASSWORD = "demo1234";
 const DEMO_BALANCE_CENTS = 5_000_000; // $50,000 fake balance for a flashy demo
+
+// A few fake friends invited by the demo account, so the referral dashboard
+// has something to show on camera. They can log in with the demo password.
+const DEMO_FRIENDS = [
+  { email: "friend1@novaspin.test", displayName: "LuckyLuke", referralCode: "FRIEND01", daysAgo: 12 },
+  { email: "friend2@novaspin.test", displayName: "Marta W.", referralCode: "FRIEND02", daysAgo: 5 },
+  { email: "friend3@novaspin.test", displayName: "Kacper99", referralCode: "FRIEND03", daysAgo: 1 },
+];
 
 // Fictional studios and titles only — no real providers or games.
 const catalog: { title: string; category: string; provider: string }[] = [
@@ -112,6 +121,50 @@ async function main() {
   } else {
     console.log(`Demo login already exists -> email: ${DEMO_EMAIL} / password: ${DEMO_PASSWORD}`);
   }
+
+  const demo = await prisma.user.findUniqueOrThrow({ where: { email: DEMO_EMAIL } });
+  let invited = 0;
+  for (const friend of DEMO_FRIENDS) {
+    if (await prisma.user.findUnique({ where: { email: friend.email } })) continue;
+
+    const joinedAt = new Date(Date.now() - friend.daysAgo * 24 * 60 * 60 * 1000);
+    await prisma.$transaction([
+      prisma.user.create({
+        data: {
+          email: friend.email,
+          passwordHash: await argon2.hash(DEMO_PASSWORD),
+          displayName: friend.displayName,
+          referralCode: friend.referralCode,
+          referredById: demo.id,
+          balanceCents: WELCOME_BONUS_CENTS,
+          createdAt: joinedAt,
+          transactions: {
+            create: {
+              type: "WELCOME_BONUS",
+              amountCents: WELCOME_BONUS_CENTS,
+              note: "Demo welcome bonus, invited by Demo Player (fake balance, no real value)",
+              createdAt: joinedAt,
+            },
+          },
+        },
+      }),
+      prisma.user.update({
+        where: { id: demo.id },
+        data: { balanceCents: { increment: REFERRAL_BONUS_CENTS } },
+      }),
+      prisma.transaction.create({
+        data: {
+          userId: demo.id,
+          type: "REFERRAL_BONUS",
+          amountCents: REFERRAL_BONUS_CENTS,
+          note: `Referral bonus for inviting ${friend.displayName}`,
+          createdAt: joinedAt,
+        },
+      }),
+    ]);
+    invited++;
+  }
+  console.log(invited ? `Seeded ${invited} demo referrals for the demo account.` : "Demo referrals already exist.");
 }
 
 main()

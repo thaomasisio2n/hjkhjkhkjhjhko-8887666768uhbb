@@ -22,6 +22,9 @@ fresh account every time.
 - `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
 - `GET /wallet`, `GET /wallet/transactions`, `POST /wallet/topup` (always
   succeeds instantly — no processor, no blockchain)
-- `GET /referrals`
+- `GET /referrals` — your code, link (built from `WEB_ORIGIN`), invited
+  friends, earnings and the current bonus amounts
+- `GET /referrals/lookup/:code` — public, case-insensitive: confirms a code
+  and returns the referrer's display name (used by the register page)
 - `GET /games`, `GET /games/:slug/launch` (returns a placeholder launch
   shape only)
