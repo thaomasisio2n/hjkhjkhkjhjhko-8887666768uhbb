@@ -1,8 +1,9 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { SESSION_TTL_SECONDS } from "../config.js";
+import { setSessionCookie } from "./session-cookie.js";
 
-/** Creates a session row for this sign-in and returns a JWT bound to it. */
-export async function startSession(app: FastifyInstance, userId: string, req: FastifyRequest) {
+/** Creates a session row for this sign-in and sets the cookie bound to it. */
+export async function startSession(app: FastifyInstance, req: FastifyRequest, reply: FastifyReply, userId: string) {
   // Rows past the token lifetime can never be used again; don't let them pile up
   // (the shared demo account gets a new one on every visitor's sign-in).
   await app.prisma.session.deleteMany({
@@ -15,7 +16,7 @@ export async function startSession(app: FastifyInstance, userId: string, req: Fa
       ip: req.ip ?? null,
     },
   });
-  return app.jwt.sign({ sub: userId, sid: session.id });
+  setSessionCookie(req, reply, app.jwt.sign({ sub: userId, sid: session.id }));
 }
 
 export async function revokeSessions(app: FastifyInstance, userId: string, exceptSessionId?: string) {

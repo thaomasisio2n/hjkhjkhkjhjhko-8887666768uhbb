@@ -1,4 +1,4 @@
-import { expect, type Page, type APIRequestContext } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 export const API = "http://localhost:8788";
 export const DEMO = { email: "demo@novaspin.test", password: "demo1234" };
@@ -12,16 +12,18 @@ export async function loginAsDemo(page: Page) {
   await expect(page).toHaveURL(/\/lobby/);
 }
 
-/** Registers through the API and signs the page in with the returned token. */
-export async function signInAsNewUser(page: Page, request: APIRequestContext, displayName = "E2E Player") {
+export const E2E_PASSWORD = "spin-e2e-8842";
+
+/**
+ * Registers through the web app's /api proxy with the page's own request
+ * context, so the httpOnly session cookie lands in the browser like a real
+ * sign-up would.
+ */
+export async function signInAsNewUser(page: Page, displayName = "E2E Player") {
   const email = uniqueEmail();
-  const res = await request.post(`${API}/auth/register`, { data: { email, password: "spin-e2e-8842", displayName } });
+  const res = await page.request.post("/api/auth/register", { data: { email, password: E2E_PASSWORD, displayName } });
   expect(res.ok()).toBeTruthy();
-  const { token } = await res.json();
-  // Set once (not via an init script) so a later logout really signs out.
-  await page.goto("/login");
-  await page.evaluate((t) => localStorage.setItem("demo_token", t), token);
-  return { email, password: "spin-e2e-8842", token };
+  return { email, password: E2E_PASSWORD };
 }
 
 export async function signInThroughForm(page: Page, email: string, password: string) {

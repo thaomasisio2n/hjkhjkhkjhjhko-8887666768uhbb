@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { PASSWORD_LENGTH, USERNAME_LENGTH } from "@novaspin/shared";
 import { computed, ref, watch } from "vue";
 import { useRouter, useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "../stores/auth";
@@ -115,7 +116,7 @@ async function submit() {
     <form class="space-y-4" @submit.prevent="submit">
       <div>
         <label for="reg-name" class="field-label">{{ t("auth.username") }}</label>
-        <input id="reg-name" v-model="displayName" type="text" autocomplete="nickname" minlength="2" maxlength="40" required class="field" />
+        <input id="reg-name" v-model="displayName" type="text" autocomplete="nickname" :minlength="USERNAME_LENGTH.min" :maxlength="USERNAME_LENGTH.max" required class="field" />
       </div>
       <div>
         <label for="reg-email" class="field-label">{{ t("auth.email") }}</label>
@@ -123,7 +124,7 @@ async function submit() {
       </div>
       <div>
         <label for="reg-password" class="field-label">{{ t("auth.password") }}</label>
-        <input id="reg-password" v-model="password" type="password" autocomplete="new-password" minlength="8" required class="field" />
+        <input id="reg-password" v-model="password" type="password" autocomplete="new-password" :minlength="PASSWORD_LENGTH.min" :maxlength="PASSWORD_LENGTH.max" required class="field" />
         <p class="mt-1.5 text-xs text-ink-400">{{ t("auth.passwordHint") }}</p>
       </div>
 

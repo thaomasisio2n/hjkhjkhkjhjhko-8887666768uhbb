@@ -28,19 +28,21 @@ describe("format helpers", () => {
 });
 
 describe("apiErrorMessage", () => {
-  it("formats the deposit-limit error from its code", () => {
-    const msg = apiErrorMessage(axiosError({ error: "…", code: "DEPOSIT_LIMIT", remainingCents: 2_000 }), "fallback");
+  it("formats amounts from amountCents", () => {
+    const msg = apiErrorMessage(axiosError({ error: "…", code: "DEPOSIT_LIMIT", amountCents: 2_000 }), "fallback");
     expect(msg).toBe("Daily deposit limit reached — you can deposit up to $20.00 more in the next 24 hours.");
   });
 
-  it("translates string errors and summarises zod field errors", () => {
+  it("translates by code, whatever the English text says", () => {
     setLocale("pl");
-    expect(apiErrorMessage(axiosError({ error: "Email already registered" }), "x")).toBe("Ten email jest już zarejestrowany");
-    const zod = { error: { formErrors: [], fieldErrors: { password: ["That password is too common — pick something less guessable"] } } };
-    expect(apiErrorMessage(axiosError(zod), "x")).toBe("To hasło jest zbyt popularne — wybierz trudniejsze do odgadnięcia");
+    expect(apiErrorMessage(axiosError({ error: "anything", code: "EMAIL_TAKEN" }), "x")).toBe("Ten email jest już zarejestrowany");
+    expect(apiErrorMessage(axiosError({ error: "…", code: "PASSWORD_TOO_COMMON", field: "password" }), "x")).toBe(
+      "To hasło jest zbyt popularne — wybierz trudniejsze do odgadnięcia"
+    );
   });
 
-  it("falls back when there is no response", () => {
+  it("falls back for network errors and bodies without a known code", () => {
     expect(apiErrorMessage(new Error("Network Error"), "API down")).toBe("API down");
+    expect(apiErrorMessage(axiosError({ error: "<img src=x onerror=alert(1)>", code: "NOPE" }), "fallback")).toBe("fallback");
   });
 });

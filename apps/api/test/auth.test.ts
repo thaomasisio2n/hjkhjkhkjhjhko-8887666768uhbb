@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { bearer, makeApp, register, uniqueEmail } from "./helpers.js";
+import { cookieFor, makeApp, register, uniqueEmail } from "./helpers.js";
 
 let app: FastifyInstance;
 beforeAll(async () => (app = await makeApp()));
@@ -10,7 +10,10 @@ describe("auth", () => {
   it("registers with a welcome balance and never leaks the password hash", async () => {
     const { res, body } = await register(app, { displayName: "Alice" });
     expect(res.statusCode).toBe(201);
-    expect(body.token).toBeTypeOf("string");
+    // The session travels only in an httpOnly, SameSite=Strict cookie.
+    expect(body.token).toBeUndefined();
+    const cookie = res.cookies.find((c) => c.name === "ns_session");
+    expect(cookie).toMatchObject({ httpOnly: true, sameSite: "Strict", path: "/" });
     expect(body.user).toMatchObject({ displayName: "Alice", balanceCents: 1_000_000, avatar: null });
     expect(body.user.referralCode).toMatch(/^[A-Z0-9_-]{8}$/);
     expect(JSON.stringify(body)).not.toContain("passwordHash");
@@ -41,7 +44,7 @@ describe("auth", () => {
   it("protects /auth/me", async () => {
     expect((await app.inject({ method: "GET", url: "/auth/me" })).statusCode).toBe(401);
     const { token } = await register(app, { displayName: "Me" });
-    const me = await app.inject({ method: "GET", url: "/auth/me", headers: bearer(token) });
+    const me = await app.inject({ method: "GET", url: "/auth/me", headers: cookieFor(token) });
     expect(me.statusCode).toBe(200);
     expect(me.json()).toMatchObject({ displayName: "Me" });
     expect(me.json().createdAt).toBeTruthy();
@@ -54,21 +57,21 @@ describe("profile", () => {
     const res = await app.inject({
       method: "PATCH",
       url: "/auth/me",
-      headers: bearer(token),
+      headers: cookieFor(token),
       payload: { displayName: "  Renamed  ", avatar: "crown-crimson" },
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ displayName: "Renamed", avatar: "crown-crimson" });
 
-    const cleared = await app.inject({ method: "PATCH", url: "/auth/me", headers: bearer(token), payload: { avatar: null } });
+    const cleared = await app.inject({ method: "PATCH", url: "/auth/me", headers: cookieFor(token), payload: { avatar: null } });
     expect(cleared.json().avatar).toBeNull();
   });
 
   it("rejects malformed avatars and empty updates", async () => {
     const { token } = await register(app);
-    const bad = await app.inject({ method: "PATCH", url: "/auth/me", headers: bearer(token), payload: { avatar: "<script>" } });
+    const bad = await app.inject({ method: "PATCH", url: "/auth/me", headers: cookieFor(token), payload: { avatar: "<script>" } });
     expect(bad.statusCode).toBe(400);
-    const empty = await app.inject({ method: "PATCH", url: "/auth/me", headers: bearer(token), payload: {} });
+    const empty = await app.inject({ method: "PATCH", url: "/auth/me", headers: cookieFor(token), payload: {} });
     expect(empty.statusCode).toBe(400);
   });
 });
@@ -79,7 +82,7 @@ describe("password change", () => {
     const wrong = await app.inject({
       method: "POST",
       url: "/auth/password",
-      headers: bearer(token),
+      headers: cookieFor(token),
       payload: { currentPassword: "not-it", newPassword: "brand-new-pass" },
     });
     expect(wrong.statusCode).toBe(400);
@@ -88,7 +91,7 @@ describe("password change", () => {
     const same = await app.inject({
       method: "POST",
       url: "/auth/password",
-      headers: bearer(token),
+      headers: cookieFor(token),
       payload: { currentPassword: payload.password, newPassword: payload.password },
     });
     expect(same.statusCode).toBe(400);
@@ -96,7 +99,7 @@ describe("password change", () => {
     const ok = await app.inject({
       method: "POST",
       url: "/auth/password",
-      headers: bearer(token),
+      headers: cookieFor(token),
       payload: { currentPassword: payload.password, newPassword: "brand-new-pass" },
     });
     expect(ok.statusCode).toBe(200);

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { API, signInAsNewUser } from "./helpers";
 
 test("profile: rename and pick an avatar", async ({ page, request }) => {
-  await signInAsNewUser(page, request, "Before Name");
+  await signInAsNewUser(page, "Before Name");
   await page.goto("/settings");
   await page.getByLabel("Username").fill("After Name");
   await page.getByRole("button", { name: "Save changes" }).click();
@@ -17,7 +17,7 @@ test("profile: rename and pick an avatar", async ({ page, request }) => {
 });
 
 test("password change takes effect", async ({ page, request }) => {
-  const user = await signInAsNewUser(page, request);
+  const user = await signInAsNewUser(page);
   await page.goto("/settings?tab=security");
   await page.getByLabel("Current password").fill(user.password);
   await page.getByLabel("New password", { exact: true }).fill("newpassword456");
@@ -32,7 +32,7 @@ test("password change takes effect", async ({ page, request }) => {
 });
 
 test("streamer mode masks the balance", async ({ page, request }) => {
-  await signInAsNewUser(page, request);
+  await signInAsNewUser(page);
   await page.goto("/settings");
   await page.getByRole("switch", { name: "Streamer mode" }).click();
   await expect(page.locator("header")).toContainText("$•••••");
@@ -41,7 +41,7 @@ test("streamer mode masks the balance", async ({ page, request }) => {
 });
 
 test("reality check reminds after the chosen interval", async ({ page, request }) => {
-  await signInAsNewUser(page, request);
+  await signInAsNewUser(page);
   await page.clock.install();
   await page.goto("/settings?tab=responsible");
   await page.getByRole("radio", { name: "15 min" }).click();

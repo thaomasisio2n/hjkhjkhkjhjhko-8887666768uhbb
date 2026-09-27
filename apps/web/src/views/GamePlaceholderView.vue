@@ -24,11 +24,16 @@ const theatre = ref(false);
 const splash = ref(true);
 const stage = ref<HTMLElement | null>(null);
 
+// Slugs come from the URL, so they're checked before they become part of an
+// API path (no "../" tricks into other endpoints).
+const SLUG = /^[a-z0-9-]{1,100}$/;
+
 async function load(slug: string) {
   loading.value = true;
   notFound.value = false;
   try {
-    const { data } = await api.get(`/games/${slug}/launch`);
+    if (!SLUG.test(slug)) throw new Error("bad slug");
+    const { data } = await api.get(`/games/${encodeURIComponent(slug)}/launch`);
     game.value = data.game;
     setTitle(data.game.title);
     ui.pushRecent(slug);

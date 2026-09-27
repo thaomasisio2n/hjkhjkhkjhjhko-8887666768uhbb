@@ -56,14 +56,22 @@ export function totp(secret: string, timeMs = Date.now(), stepSeconds = 30, digi
 }
 
 /** Accepts the current code and one step either side, to absorb clock drift. */
-export function verifyTotp(secret: string, code: string, timeMs = Date.now(), window = 1): boolean {
-  if (!/^\d{6}$/.test(code)) return false;
+/**
+ * Returns the 30-second time step the code belongs to (allowing `window`
+ * steps of clock drift), or null. Callers store the step to refuse replays.
+ */
+export function matchTotpStep(secret: string, code: string, timeMs = Date.now(), window = 1): number | null {
+  if (!/^\d{6}$/.test(code)) return null;
   const given = Buffer.from(code);
-  for (let drift = -window; drift <= window; drift++) {
-    const expected = Buffer.from(totp(secret, timeMs + drift * 30_000));
-    if (timingSafeEqual(given, expected)) return true;
+  const now = Math.floor(timeMs / 30_000);
+  for (let step = now - window; step <= now + window; step++) {
+    if (timingSafeEqual(given, Buffer.from(totp(secret, step * 30_000)))) return step;
   }
-  return false;
+  return null;
+}
+
+export function verifyTotp(secret: string, code: string, timeMs = Date.now(), window = 1): boolean {
+  return matchTotpStep(secret, code, timeMs, window) !== null;
 }
 
 export function otpauthUrl(secret: string, account: string, issuer = "NovaSpin Demo"): string {

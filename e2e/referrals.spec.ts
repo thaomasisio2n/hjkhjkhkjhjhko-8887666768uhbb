@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { API, loginAsDemo, uniqueEmail } from "./helpers";
+import { API, E2E_PASSWORD, loginAsDemo, uniqueEmail } from "./helpers";
 
 test("dashboard shows the seeded friends and a working link", async ({ page }) => {
   await loginAsDemo(page);
@@ -17,7 +17,7 @@ test("a friend signing up pops a live notification for the referrer", async ({ p
   await page.waitForTimeout(1_500);
 
   const res = await request.post(`${API}/auth/register`, {
-    data: { email: uniqueEmail("live"), password: "spin-e2e-8842", displayName: "LiveViewer", referralCode: "DEMO0001" },
+    data: { email: uniqueEmail("live"), password: E2E_PASSWORD, displayName: "LiveViewer", referralCode: "DEMO0001" },
   });
   expect(res.ok()).toBeTruthy();
 

@@ -1,20 +1,37 @@
 # Build from the repository root: docker build -f apps/api/Dockerfile .
-FROM node:22-bookworm-slim
-
+# Base image pinned by digest (Dependabot keeps it current).
+FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS base
 # Prisma's query engine needs OpenSSL.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
+
+# --- build: full toolchain, compiles shared + API (including the seed) ------
+FROM base AS build
 COPY package.json package-lock.json ./
+COPY scripts/build-shared.mjs scripts/build-shared.mjs
+COPY packages/shared packages/shared
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 RUN npm ci --workspace=apps/api
-
 COPY apps/api apps/api
+RUN cd apps/api && npx prisma generate && npm run build
+
+# --- runtime: production dependencies and compiled output only --------------
+# No TypeScript, tsx, vitest or sources: less to exploit if something breaks.
+FROM base AS runtime
+COPY package.json package-lock.json ./
+COPY scripts/build-shared.mjs scripts/build-shared.mjs
+COPY --from=build /app/packages/shared/package.json packages/shared/package.json
+COPY --from=build /app/packages/shared/dist packages/shared/dist
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+RUN npm ci --omit=dev --workspace=apps/api && npm cache clean --force
 WORKDIR /app/apps/api
-RUN npx prisma generate && npm run build
+COPY apps/api/prisma prisma
+RUN npx prisma generate
+COPY --from=build /app/apps/api/dist dist
 
 # CHECKPOINT_DISABLE / PRISMA_HIDE_UPDATE_MESSAGE: no phoning home from the
 # Prisma CLI at start-up.

@@ -36,13 +36,16 @@ export class FailureThrottle {
 
   private prune(now: number) {
     for (const [key, entry] of this.entries) if (entry.resetAt <= now) this.entries.delete(key);
-    // Still full (a flood of distinct keys)? Drop the oldest half rather than grow without bound.
-    if (this.entries.size >= this.maxKeys) {
-      let drop = Math.floor(this.entries.size / 2);
-      for (const key of this.entries.keys()) {
-        if (drop-- <= 0) break;
-        this.entries.delete(key);
-      }
+    if (this.entries.size < this.maxKeys) return;
+    // Still full (a flood of distinct keys)? Drop the oldest half, but never
+    // an account that's currently blocked: flooding junk keys must not be a
+    // way to reset a victim's counter.
+    let drop = Math.floor(this.entries.size / 2);
+    for (const [key, entry] of this.entries) {
+      if (drop <= 0) break;
+      if (entry.count >= this.max) continue;
+      this.entries.delete(key);
+      drop--;
     }
   }
 }

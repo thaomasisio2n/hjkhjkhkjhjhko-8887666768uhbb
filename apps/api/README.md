@@ -1,26 +1,43 @@
 # API (demo)
 
-Fastify + Prisma + SQLite. JWT auth, fake wallet/top-up, referrals, and a
-placeholder game catalog. No real payments, no real game clients.
+Fastify + Prisma + SQLite. Cookie sessions, fake wallet/top-up, referrals,
+chat and a placeholder game catalog. No real payments, no real game clients.
+
+The easiest start is `npm start` in the repo root. By hand (from the root,
+so the shared package gets built):
 
 ```bash
 npm install
-cp .env.example .env
-npx prisma migrate dev --name init
-npx prisma db seed   # or: npx tsx prisma/seed.ts
-npm run dev
+cp apps/api/.env.example apps/api/.env   # then put a random JWT_SECRET in it
+cd apps/api && npx prisma migrate deploy && npx prisma db seed && npm run dev
 ```
 
-Runs on `http://localhost:8787` by default. `npm test` runs the Vitest
-integration suite against a throwaway `prisma/test.db`.
+Runs on `http://localhost:8787`. Browsers don't call it directly: the web
+app's dev server (and nginx in Docker) forwards `/api` to it, so both share
+one origin. `npm test` runs the Vitest integration suite against a
+throwaway `prisma/test.db`.
 
 The seed also creates a demo login: `demo@novaspin.test` / `demo1234`
 (pre-loaded with a $50,000 fake balance) so you don't have to register a
 fresh account every time.
 
+## Conventions
+
+- **Sessions** are an httpOnly, SameSite=Strict cookie (`ns_session`, or
+  `__Host-ns_session` when `WEB_ORIGIN` is HTTPS) holding a JWT bound to a
+  session row. Tokens never appear in bodies and `Authorization` headers
+  are ignored.
+- **CSRF:** non-GET requests that a browser marks as cross-origin or
+  cross-site (`Origin` / `Sec-Fetch-Site`) get `403 FORBIDDEN_ORIGIN`.
+- **Errors** are always `{ error, code, ...extras }`. `code` comes from
+  `API_ERRORS` in `@novaspin/shared`; validation errors add `field`, and
+  amounts come as `amountCents`.
+
 ## Endpoints
 
-- `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
+- `POST /auth/register`, `POST /auth/login` (set the session cookie and
+  return `{ user }`), `GET /auth/session` (`{ user | null }`, never 401s),
+  `GET /auth/me`
 - `PATCH /auth/me` (display name, avatar preset key — `null` resets it —
   and/or `ghostMode`), `POST /auth/password` (needs the current password;
   signs out other sessions), `DELETE /auth/me` (needs the password)
@@ -30,7 +47,7 @@ fresh account every time.
 - `POST /auth/2fa/setup` (secret, otpauth URL and QR SVG),
   `POST /auth/2fa/enable` / `POST /auth/2fa/disable` with `{ code }`; once
   enabled, `POST /auth/login` answers `TOTP_REQUIRED` / `TOTP_INVALID`
-  until a valid `code` is sent
+  until a valid `code` is sent. Every code works once.
 - `POST /auth/break` with `{ duration: "1h" | "24h" | "7d" | "30d" }` —
   revokes all sessions; sign-in returns `403 ON_BREAK` until it ends
 - `GET /wallet` (balance, daily deposit limit, deposited in the last 24h),
@@ -63,13 +80,20 @@ caller's own session.
   uses it).
 - Failed sign-ins are also counted per email across all IPs: 10 in 15
   minutes pauses that email (`429 ACCOUNT_THROTTLED`); wrong 2FA codes
-  count too. Shared accounts are exempt, so nobody can lock them.
+  count too. Browsers that signed in to the account before carry a signed
+  device cookie and get through anyway, so the throttle can't be used to
+  lock the owner out. Shared accounts are exempt.
 - JWTs are HS256-only and expire after 7 days; each is bound to a
   revocable session row.
+- Password hashing (argon2id, 19 MiB, t=2) runs at most 4 at a time with a
+  bounded queue; beyond that the answer is `503 SERVER_BUSY`.
+- Top-ups are serialised per user; the balance cap and bonuses are part of
+  the SQL `UPDATE`.
 - 16 KB request bodies, strict security headers, `Cache-Control:
   no-store`, and generic bodies for 404/5xx.
-- Common passwords are refused; emails are case-insensitive; usernames
-  can't contain links, staff titles or invisible characters.
+- Common passwords are refused; emails are case-insensitive; usernames are
+  NFKC-normalised Latin letters, digits and `. _ ' -`, without links, staff
+  titles or a shared account's name.
 - Fake balances are capped at $10,000,000.
 
 ## Environment
@@ -77,9 +101,9 @@ caller's own session.
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | SQLite file, e.g. `file:./dev.db` |
-| `JWT_SECRET` | Token signing key. With `NODE_ENV=production` the API refuses to start unless it's at least 32 characters and not the default. |
-| `WEB_ORIGIN` | The web app's public origin: CORS and referral links |
-| `TRUST_PROXY` | Number of reverse proxies in front (e.g. `1`), or their IPs/CIDRs. Leave unset when clients connect directly, otherwise `X-Forwarded-For` can be spoofed to dodge rate limits. |
+| `JWT_SECRET` | Token signing key. Unset (or the old public default): a random one per process. With `NODE_ENV=production` it must be set and at least 32 characters. |
+| `WEB_ORIGIN` | The public origin people open: CSRF check and referral links. `https://…` makes cookies `Secure` + `__Host-`. |
+| `TRUST_PROXY` | Proxy hops in front of the API: a count (`1` = nginx in Docker) or proxy IPs/CIDRs. Leave unset when clients connect directly, otherwise `X-Forwarded-For` could be faked. |
 | `DISABLE_REGISTRATION`, `DISABLE_CHAT` | Set to `1` to pause sign-ups or chat posting |
 | `WELCOME_BONUS_CENTS`, `REFERRAL_BONUS_CENTS` | Demo economy |
 

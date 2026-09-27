@@ -1,12 +1,12 @@
 import { PrismaClient } from "@prisma/client";
-import argon2 from "argon2";
-import { REFERRAL_BONUS_CENTS, WELCOME_BONUS_CENTS } from "../src/config.js";
+import { REFERRAL_BONUS_CENTS, SHARED_ACCOUNT_BALANCE_CENTS, WELCOME_BONUS_CENTS } from "../config.js";
+import { hashPassword } from "../lib/passwords.js";
 
 const prisma = new PrismaClient();
 
 const DEMO_EMAIL = "demo@novaspin.test";
 const DEMO_PASSWORD = "demo1234";
-const DEMO_BALANCE_CENTS = 5_000_000; // $50,000 fake balance for a flashy demo
+const DEMO_BALANCE_CENTS = SHARED_ACCOUNT_BALANCE_CENTS; // $50,000 fake balance for a flashy demo
 
 // A few fake friends invited by the demo account, so the referral dashboard
 // has something to show on camera. They can log in with the demo password.
@@ -100,7 +100,7 @@ async function main() {
 
   const existingDemo = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } });
   if (!existingDemo) {
-    const passwordHash = await argon2.hash(DEMO_PASSWORD);
+    const passwordHash = await hashPassword(DEMO_PASSWORD);
     await prisma.user.create({
       data: {
         email: DEMO_EMAIL,
@@ -132,7 +132,7 @@ async function main() {
       prisma.user.create({
         data: {
           email: friend.email,
-          passwordHash: await argon2.hash(DEMO_PASSWORD),
+          passwordHash: await hashPassword(DEMO_PASSWORD),
           displayName: friend.displayName,
           referralCode: friend.referralCode,
           avatar: friend.avatar,
@@ -171,7 +171,7 @@ async function main() {
   // that could lock others out are read-only). Every seed run also puts them
   // back to their published state, in case anything changed before that
   // protection existed: password, profile, 2FA, breaks, limits.
-  const sharedPasswordHash = await argon2.hash(DEMO_PASSWORD);
+  const sharedPasswordHash = await hashPassword(DEMO_PASSWORD);
   const sharedProfiles = [
     { email: DEMO_EMAIL, displayName: "Demo Player", avatar: null },
     ...DEMO_FRIENDS.map((f) => ({ email: f.email, displayName: f.displayName, avatar: f.avatar })),

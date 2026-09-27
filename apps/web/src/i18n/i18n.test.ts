@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import en from "./en";
 import pl from "./pl";
-import { locale, setLocale, t, tc, translateServerError } from "./index";
+import { locale, setLocale, t, tc } from "./index";
 
 afterEach(() => setLocale("en"));
 
@@ -41,13 +41,13 @@ describe("tc() plurals", () => {
   });
 });
 
-describe("server errors", () => {
-  it("translates known API messages and passes others through", () => {
-    setLocale("pl");
-    expect(translateServerError("Invalid credentials")).toBe("Nieprawidłowy email lub hasło");
-    expect(translateServerError("Something new")).toBe("Something new");
-    setLocale("en");
-    expect(translateServerError("Invalid credentials")).toBe("Invalid credentials");
+describe("API error messages", () => {
+  it("has English and Polish text for every code the API can return", async () => {
+    const { API_ERRORS } = await import("@novaspin/shared");
+    for (const code of Object.keys(API_ERRORS)) {
+      expect(en.apiErrors[code as keyof typeof API_ERRORS], code).toBeTruthy();
+      expect(pl.apiErrors[code as keyof typeof API_ERRORS], code).toBeTruthy();
+    }
   });
 });
 
@@ -59,7 +59,7 @@ describe("dictionaries", () => {
 
   it("has a Polish entry for every English key", () => {
     const plKeys = new Set(leaves(pl));
-    const missing = leaves(en).filter((k) => !k.startsWith("serverErrors") && !plKeys.has(k));
+    const missing = leaves(en).filter((k) => !plKeys.has(k));
     expect(missing).toEqual([]);
   });
 });

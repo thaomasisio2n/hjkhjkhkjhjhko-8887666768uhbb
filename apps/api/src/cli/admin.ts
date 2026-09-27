@@ -3,7 +3,7 @@
 //   npm run admin -- <command>                          (local)
 //   docker compose exec api node dist/cli/admin.js <command>   (Docker)
 import { PrismaClient } from "@prisma/client";
-import { MAX_BALANCE_CENTS } from "../config.js";
+import { MAX_BALANCE_CENTS } from "@novaspin/shared";
 
 const HELP = `Usage: admin <command>
 

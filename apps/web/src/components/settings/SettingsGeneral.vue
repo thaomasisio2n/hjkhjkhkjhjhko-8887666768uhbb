@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { USERNAME_LENGTH } from "@novaspin/shared";
 import { computed, ref, watch } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { useToastStore } from "../../stores/toast";
@@ -83,14 +84,15 @@ async function saveAvatar(avatar: string | null) {
 
 <template>
   <div class="space-y-6">
-    <section class="panel flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
+    <!-- Wraps the stats onto their own row when the column is narrow (e.g. chat open). -->
+    <section class="panel flex flex-wrap items-center gap-5 p-5 sm:p-6">
       <UserAvatar :name="auth.user?.displayName" :avatar="auth.user?.avatar" :size="64" />
-      <div class="min-w-0 flex-1">
+      <div class="min-w-[12rem] flex-1">
         <p class="truncate text-lg font-extrabold">{{ auth.user?.displayName ?? t("topbar.player") }}</p>
         <p class="truncate text-sm text-ink-300">{{ auth.user?.email }}</p>
         <p class="mt-1 text-xs text-ink-400">{{ t("settings.memberSince", { date: memberSince }) }}</p>
       </div>
-      <div class="grid grid-cols-2 gap-2 sm:w-[420px] sm:grid-cols-3">
+      <div class="grid w-full grid-cols-2 gap-2 sm:w-[420px] sm:grid-cols-3">
         <div v-for="s in stats" :key="s.label" class="rounded-lg bg-ink-800 px-3 py-3" :class="{ 'col-span-2 sm:col-span-1': s.wide }">
           <p class="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-400">
             <Icon :name="s.icon" :size="12" /> <span class="truncate">{{ s.label }}</span>
@@ -160,7 +162,7 @@ async function saveAvatar(avatar: string | null) {
             </div>
             <div>
               <label for="set-name" class="field-label">{{ t("auth.username") }}</label>
-              <input id="set-name" v-model="displayName" type="text" minlength="2" maxlength="40" required autocomplete="nickname" class="field" />
+              <input id="set-name" v-model="displayName" type="text" :minlength="USERNAME_LENGTH.min" :maxlength="USERNAME_LENGTH.max" required autocomplete="nickname" class="field" />
               <p class="mt-1.5 text-xs text-ink-400">{{ t("settings.usernameHint") }}</p>
             </div>
             <div>

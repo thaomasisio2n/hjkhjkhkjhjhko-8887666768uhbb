@@ -30,7 +30,7 @@ export default defineConfig({
     {
       command: "npm run dev --workspace=apps/web -- --port 5174 --strictPort",
       url: WEB,
-      env: { VITE_API_URL: API },
+      env: { API_PROXY_TARGET: API },
       reuseExistingServer: false,
       timeout: 120_000,
     },

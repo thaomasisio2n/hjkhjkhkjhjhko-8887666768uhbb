@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { REFERRAL_BONUS_CENTS, WELCOME_BONUS_CENTS, normalizeReferralCode, referralLink } from "../config.js";
+import { fail, perMinute } from "../lib/http.js";
 
 const INVITED_PAGE = 100;
 
@@ -35,13 +36,12 @@ export default async function referralRoutes(app: FastifyInstance) {
   });
 
   // Public: lets the register page confirm a code and say who sent the invite.
-  const lookupLimit = { config: { rateLimit: { max: app.limits.lookup, timeWindow: "1 minute" } } };
-  app.get("/referrals/lookup/:code", lookupLimit, async (req, reply) => {
-    const code = normalizeReferralCode((req.params as { code: string }).code);
+  app.get("/referrals/lookup/:code", perMinute(app.limits.lookup), async (req) => {
+    const code = normalizeReferralCode((req.params as { code: string }).code.slice(0, 32));
     const referrer = code
       ? await app.prisma.user.findUnique({ where: { referralCode: code }, select: { displayName: true, bannedAt: true } })
       : null;
-    if (!referrer || referrer.bannedAt) return reply.code(404).send({ error: "Referral code not found" });
+    if (!referrer || referrer.bannedAt) fail("REFERRAL_NOT_FOUND");
 
     return { code, referrerName: referrer.displayName, welcomeBonusCents: WELCOME_BONUS_CENTS };
   });

@@ -1,8 +1,9 @@
-# One-command demo: docker compose up --build
-# Web: http://localhost:8080 · API: http://localhost:8787
+# One-command demo: docker compose up --build → http://localhost:8080
 #
-# Hosting it publicly? Read SECURITY.md first: set JWT_SECRET, WEB_ORIGIN,
-# VITE_API_URL and TRUST_PROXY for your domain and put TLS in front.
+# Only the web server is published. It serves the app and forwards /api to
+# the API over the internal network; the API has no public port at all.
+# Hosting it publicly? Read SECURITY.md first (JWT_SECRET, WEB_ORIGIN,
+# TRUSTED_PROXIES, TLS in front).
 
 # Both containers run as non-root users with no Linux capabilities and a
 # read-only root filesystem; only the database volume and /tmp are writable.
@@ -22,17 +23,17 @@ services:
     environment:
       # Leave empty to get a random secret per start; set it to keep sessions.
       JWT_SECRET: ${JWT_SECRET:-}
+      # The public address people open (CSRF check and referral links).
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
-      # Set to the number of proxies in front of the API (e.g. 1) when hosted
-      # behind one; leave empty when clients connect to it directly.
-      TRUST_PROXY: ${TRUST_PROXY:-}
+      # Exactly one hop: the web container, which is the only way in and
+      # always sends the visitor's real IP. (Proxies in front of the web
+      # container are configured there, with TRUSTED_PROXIES.)
+      TRUST_PROXY: "1"
       # Kill switches: set to 1 and restart to pause sign-ups or chat.
       DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-}
       DISABLE_CHAT: ${DISABLE_CHAT:-}
       # npm/npx/tsx caches go to the tmpfs; the root filesystem is read-only.
       HOME: /tmp
-    ports:
-      - "8787:8787"
     volumes:
       - api-data:/data
 
@@ -42,9 +43,11 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8787}
+        # IPs/CIDRs of a TLS proxy or CDN in front of this container, which
+        # may report the visitor's IP in X-Forwarded-For. Empty: direct.
+        TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
     ports:
-      - "8080:8080"
+      - "${WEB_PORT:-8080}:8080"
     depends_on:
       api:
         condition: service_healthy

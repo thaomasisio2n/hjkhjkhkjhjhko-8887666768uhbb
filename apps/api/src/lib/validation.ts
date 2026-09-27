@@ -1,7 +1,11 @@
 import { z } from "zod";
+import { EMAIL_MAX_LENGTH, PASSWORD_LENGTH, TOTP_DIGITS, USERNAME_LENGTH, isAvatarKey } from "@novaspin/shared";
+
+// Schemas for fields that appear in more than one route. Messages are error
+// codes from @novaspin/shared (see lib/http.ts `parse`).
 
 // Lower-cased so "Demo@x.test" and "demo@x.test" can't become two accounts.
-export const emailSchema = z.string().trim().toLowerCase().email("Enter a valid email address").max(254, "Enter a valid email address");
+export const email = z.string().trim().toLowerCase().max(EMAIL_MAX_LENGTH, "EMAIL_INVALID").email("EMAIL_INVALID");
 
 // The most common 8+ character passwords from public breach lists. Anything
 // here falls to the first guesses of a credential-stuffing script.
@@ -20,25 +24,42 @@ const COMMON_PASSWORDS = new Set([
   "novaspin", "novaspin1", "novaspin123", "casino123", "stake123", "bitcoin1",
 ]);
 
-export const passwordSchema = z
+export const newPassword = z
   .string()
-  .min(8, "Password must be at least 8 characters")
-  .max(128, "Password must be at most 128 characters")
-  .refine((p) => !COMMON_PASSWORDS.has(p.toLowerCase()), "That password is too common — pick something less guessable")
-  .refine((p) => !/^(.)\1+$/.test(p), "That password is too common — pick something less guessable");
+  .min(PASSWORD_LENGTH.min, "PASSWORD_TOO_SHORT")
+  .max(PASSWORD_LENGTH.max, "PASSWORD_TOO_LONG")
+  .refine((p) => !COMMON_PASSWORDS.has(p.toLowerCase()) && !/^(.)\1+$/.test(p), "PASSWORD_TOO_COMMON");
 
-// Names show up in chat and on other players' referral lists, so no links,
-// invisible characters, or pretending to be staff.
+/** A password being checked (sign-in, confirmations): only bounded, never judged. */
+export const existingPassword = z.string().min(1, "PASSWORD_REQUIRED").max(PASSWORD_LENGTH.max, "INVALID_CREDENTIALS");
+
+// Names show up in chat and on other players' referral lists, so they must
+// not be able to pass for staff or someone else. NFKC folds look-alike forms
+// ("ｓupport" → "support"); only Latin letters (Polish ones included),
+// digits, spaces and . _ ' - are allowed, which rules out Cyrillic/Greek
+// homoglyphs ("Аdmin"), invisible and direction-flipping characters, and
+// stacked accents.
+const ALLOWED_NAME = /^[\p{Script=Latin}\p{Nd}][\p{Script=Latin}\p{Nd} ._'-]*$/u;
 const RESERVED_NAME = /\b(admin|administrator|moderator|mod|support|staff|official|system|novaspin)\b/i;
 const LINK_LIKE = /(https?:\/\/|www\.|\.(com|net|org|io|gg|pl|ru|xyz|ly)\b)/i;
-// Control, zero-width, bidi-override and other format characters.
-const INVISIBLE = /[\p{Cc}\p{Cf}]/u;
 
-export const displayNameSchema = z
+export const displayName = z
   .string()
-  .trim()
-  .min(2, "Username must be 2–40 characters")
-  .max(40, "Username must be 2–40 characters")
-  .refine((n) => !INVISIBLE.test(n), "Username contains characters that aren't allowed")
-  .refine((n) => !LINK_LIKE.test(n), "Usernames can't contain links")
-  .refine((n) => !RESERVED_NAME.test(n), "That username is reserved");
+  .max(USERNAME_LENGTH.max * 4, "USERNAME_LENGTH")
+  .transform((n) => n.normalize("NFKC").replace(/\s+/g, " ").trim())
+  .pipe(
+    z
+      .string()
+      .min(USERNAME_LENGTH.min, "USERNAME_LENGTH")
+      .max(USERNAME_LENGTH.max, "USERNAME_LENGTH")
+      .refine((n) => ALLOWED_NAME.test(n), "USERNAME_CHARACTERS")
+      .refine((n) => !LINK_LIKE.test(n), "USERNAME_LINK")
+      .refine((n) => !RESERVED_NAME.test(n), "USERNAME_RESERVED")
+  );
+
+/** Case, spacing and punctuation don't make a name different ("demo.player" = "Demo Player"). */
+export const foldName = (name: string) => name.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{Nd}]/gu, "");
+
+export const avatar = z.string().refine(isAvatarKey, "AVATAR_INVALID");
+
+export const totpCode = z.string().trim().regex(new RegExp(`^\\d{${TOTP_DIGITS}}$`), "TOTP_FORMAT");

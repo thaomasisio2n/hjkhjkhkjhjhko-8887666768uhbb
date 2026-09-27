@@ -17,7 +17,7 @@ const route = useRoute();
 const router = useRouter();
 
 onMounted(() => {
-  auth.fetchMe().catch(() => {});
+  auth.refresh().catch(() => {});
   wallet.fetchBalance().catch(() => {});
 });
 

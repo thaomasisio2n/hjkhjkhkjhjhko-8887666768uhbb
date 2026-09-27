@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { TOTP_DIGITS } from "@novaspin/shared";
 import { nextTick, ref } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import { apiErrorBody } from "../lib/api";
 import { apiErrorMessage } from "../lib/format";
 import { intlLocale, t } from "../i18n";
 import AuthShell from "../components/AuthShell.vue";
@@ -38,7 +40,7 @@ async function submit() {
     await auth.login({ email: email.value, password: password.value, code: step.value === "totp" ? code.value : undefined });
     router.push({ name: "lobby" });
   } catch (e) {
-    const body = (e as { response?: { data?: { code?: string; until?: string } } }).response?.data;
+    const body = apiErrorBody(e);
     if (body?.code === "TOTP_REQUIRED") {
       step.value = "totp";
       await nextTick();
@@ -88,14 +90,14 @@ function useDemo() {
           v-model.trim="code"
           inputmode="numeric"
           autocomplete="one-time-code"
-          maxlength="6"
-          pattern="\d{6}"
+          :maxlength="TOTP_DIGITS"
+          :pattern="`\\d{${TOTP_DIGITS}}`"
           required
           class="field h-14 text-center font-mono text-2xl tracking-[0.5em]"
         />
       </div>
       <p v-if="error" class="rounded-md bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300">{{ error }}</p>
-      <button type="submit" :disabled="loading || code.length !== 6" class="btn-accent h-12 w-full text-base">
+      <button type="submit" :disabled="loading || code.length !== TOTP_DIGITS" class="btn-accent h-12 w-full text-base">
         {{ loading ? t("auth.signingIn") : t("auth.verify") }}
       </button>
       <button type="button" class="flex w-full items-center justify-center gap-1.5 text-sm font-semibold text-ink-300 hover:text-white" @click="backToCredentials">

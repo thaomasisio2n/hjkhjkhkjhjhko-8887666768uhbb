@@ -18,5 +18,5 @@ if [ -z "$JWT_SECRET" ]; then
 fi
 
 npx prisma migrate deploy
-npx prisma db seed
+node dist/cli/seed.js
 exec node dist/index.js

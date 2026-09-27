@@ -28,6 +28,8 @@ model User {
   // only counts once totpEnabled is true.
   totpSecret    String?
   totpEnabled   Boolean  @default(false)
+  // Time step of the last accepted code: a code can't be used twice.
+  totpLastStep  Int?
   // Hides the player's name and avatar from others in chat.
   ghostMode     Boolean  @default(false)
   // Seeded accounts whose password is published (demo + friends). Anyone can

@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { API, signInAsNewUser, uniqueEmail } from "./helpers";
+import { API, E2E_PASSWORD, signInAsNewUser, uniqueEmail } from "./helpers";
 
 test("chat: send, switch rooms, and server-side rules", async ({ page, request }) => {
-  await signInAsNewUser(page, request, "Chatty");
+  await signInAsNewUser(page, "Chatty");
   await page.goto("/lobby");
   await page.getByRole("button", { name: "Open chat" }).click();
   const chat = page.getByRole("complementary", { name: "Chat" });
@@ -26,17 +26,15 @@ test("chat: send, switch rooms, and server-side rules", async ({ page, request }
 });
 
 test("chat: another player's message shows up live", async ({ page, request }) => {
-  await signInAsNewUser(page, request);
+  await signInAsNewUser(page);
   await page.goto("/lobby");
   await page.getByRole("button", { name: "Open chat" }).click();
   const chat = page.getByRole("complementary", { name: "Chat" });
   await expect(chat.getByTestId("chat-message").first()).toBeVisible();
 
-  const other = await request.post(`${API}/auth/register`, {
-    data: { email: uniqueEmail("chat"), password: "spin-e2e-8842", displayName: "Visitor" },
-  });
-  const { token } = await other.json();
-  await request.post(`${API}/chat/en`, { data: { body: "hi from another tab" }, headers: { Authorization: `Bearer ${token}` } });
+  // Another player, with its own cookie jar.
+  await request.post(`${API}/auth/register`, { data: { email: uniqueEmail("chat"), password: E2E_PASSWORD, displayName: "Visitor" } });
+  await request.post(`${API}/chat/en`, { data: { body: "hi from another tab" } });
 
   await expect(chat.getByText("hi from another tab")).toBeVisible({ timeout: 10_000 });
 });

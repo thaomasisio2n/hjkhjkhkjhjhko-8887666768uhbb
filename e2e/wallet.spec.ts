@@ -16,7 +16,7 @@ test("a demo deposit credits the balance", async ({ page }) => {
 });
 
 test("daily deposit limit blocks larger deposits", async ({ page, request }) => {
-  await signInAsNewUser(page, request);
+  await signInAsNewUser(page);
   await page.goto("/settings?tab=responsible");
   await page.getByRole("button", { name: "$100", exact: true }).click();
   await expect(page.getByText("Daily deposit limit set to $100.00")).toBeVisible();
@@ -32,7 +32,7 @@ test("daily deposit limit blocks larger deposits", async ({ page, request }) => 
 });
 
 test("transaction history filters and exports CSV", async ({ page, request }) => {
-  await signInAsNewUser(page, request);
+  await signInAsNewUser(page);
   await page.goto("/wallet");
   await page.getByRole("tab", { name: "Deposits" }).click();
   await expect(page.getByText("Nothing matches this filter.")).toBeVisible();

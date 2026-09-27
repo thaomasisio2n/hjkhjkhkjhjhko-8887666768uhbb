@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import type { TopupMethod } from "@novaspin/shared";
 import { api } from "../lib/api";
 import { useAuthStore } from "./auth";
 
@@ -54,7 +55,7 @@ export const useWalletStore = defineStore("wallet", {
     },
     // DEMO ONLY: this never touches a real payment rail or blockchain.
     // It always succeeds and instantly credits a fake balance.
-    async topup(amountCents: number, method: "crypto_btc" | "crypto_eth" | "crypto_usdt") {
+    async topup(amountCents: number, method: TopupMethod) {
       this.loading = true;
       try {
         const { data } = await api.post("/wallet/topup", { amountCents, method });

@@ -4,11 +4,19 @@ import { t } from "../i18n";
 import { useToastStore } from "./toast";
 
 // Per-browser UI conveniences. Storage can be unavailable (private mode,
-// blocked site data), so every access is guarded and falls back gracefully.
-function load<T>(key: string, fallback: T): T {
+// blocked site data) or hold anything at all, so every value is parsed,
+// checked against its expected shape, and falls back when it doesn't fit.
+type Guard<T> = (value: unknown) => value is T;
+const isBoolean: Guard<boolean> = (v): v is boolean => typeof v === "boolean";
+const isCount: Guard<number> = (v): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0;
+const isSlugList: Guard<string[]> = (v): v is string[] =>
+  Array.isArray(v) && v.length <= 200 && v.every((s) => typeof s === "string" && s.length <= 100);
+
+function load<T>(key: string, fallback: T, valid: Guard<T>): T {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    const value: unknown = raw ? JSON.parse(raw) : undefined;
+    return valid(value) ? value : fallback;
   } catch {
     return fallback;
   }
@@ -24,18 +32,18 @@ function save(key: string, value: unknown) {
 
 export const useUiStore = defineStore("ui", {
   state: () => ({
-    sidebarCollapsed: load("ns_sidebar_collapsed", false),
-    streamerMode: load("ns_streamer_mode", false),
+    sidebarCollapsed: load("ns_sidebar_collapsed", false, isBoolean),
+    streamerMode: load("ns_streamer_mode", false, isBoolean),
     mobileNavOpen: false,
     walletOpen: false,
     searchOpen: false,
-    favourites: load<string[]>("ns_favourites", []),
-    recent: load<string[]>("ns_recent", []),
-    recentSearches: load<string[]>("ns_recent_searches", []),
-    notificationsSeenAt: load<number>("ns_notifications_seen", 0),
+    favourites: load("ns_favourites", [], isSlugList),
+    recent: load("ns_recent", [], isSlugList),
+    recentSearches: load("ns_recent_searches", [], isSlugList),
+    notificationsSeenAt: load("ns_notifications_seen", 0, isCount),
     // Reality-check reminder interval in minutes; 0 = off.
-    realityCheckMinutes: load<number>("ns_reality_check", 0),
-    chatOpen: load("ns_chat_open", false),
+    realityCheckMinutes: load("ns_reality_check", 0, isCount),
+    chatOpen: load("ns_chat_open", false, isBoolean),
   }),
   getters: {
     isFavourite: (state) => (slug: string) => state.favourites.includes(slug),

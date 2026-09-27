@@ -1,23 +1,8 @@
+import { AVATAR_PRESETS } from "@novaspin/shared";
 import { PALETTES, type Emblem, type Palette } from "./gameArt";
 
-type PaletteName = keyof typeof PALETTES;
-
-// Avatar presets reuse the game-cover emblems. Keys are "<emblem>-<palette>",
-// which is also the shape the API validates.
-const PRESETS: [Emblem, PaletteName][] = [
-  ["crown", "crimson"],
-  ["gem", "ice"],
-  ["bolt", "royal"],
-  ["flame", "volcano"],
-  ["star", "violet"],
-  ["cherry", "jungle"],
-  ["seven", "gold"],
-  ["anchor", "ocean"],
-  ["blossom", "sakura"],
-  ["dice", "midnight"],
-  ["chip", "emerald"],
-  ["coin", "desert"],
-];
+// Avatar presets reuse the game-cover emblems. The list of keys is shared
+// with the API, which only accepts these.
 
 export interface AvatarPreset {
   key: string;
@@ -25,7 +10,7 @@ export interface AvatarPreset {
   palette: Palette;
 }
 
-export const AVATARS: AvatarPreset[] = PRESETS.map(([emblem, palette]) => ({
+export const AVATARS: AvatarPreset[] = AVATAR_PRESETS.map(([emblem, palette]) => ({
   key: `${emblem}-${palette}`,
   emblem,
   palette: PALETTES[palette],

@@ -1,102 +1,60 @@
 import type { FastifyInstance } from "fastify";
-import argon2 from "argon2";
 import { nanoid } from "nanoid";
 import { z } from "zod";
-import { MAX_BALANCE_CENTS, REFERRAL_BONUS_CENTS, WELCOME_BONUS_CENTS, normalizeReferralCode } from "../config.js";
+import { MAX_BALANCE_CENTS } from "@novaspin/shared";
+import { REFERRAL_BONUS_CENTS, WELCOME_BONUS_CENTS, normalizeReferralCode } from "../config.js";
+import { assertNameNotShared, consumeTotp, publicUser } from "../lib/accounts.js";
+import { isTrustedDevice, setDeviceCookie } from "../lib/device-cookie.js";
+import { fail, parse, perMinute } from "../lib/http.js";
+import { hashPassword, verifyPassword } from "../lib/passwords.js";
+import { emailTag, securityEvent } from "../lib/security-log.js";
+import { clearSessionCookie } from "../lib/session-cookie.js";
 import { revokeSessions, startSession } from "../lib/sessions.js";
-import { verifyTotp } from "../lib/totp.js";
-import { displayNameSchema, emailSchema, passwordSchema as newPasswordSchema } from "../lib/validation.js";
+import * as field from "../lib/validation.js";
 
 const registerSchema = z.object({
-  email: emailSchema,
-  password: newPasswordSchema,
-  displayName: displayNameSchema,
+  email: field.email,
+  password: field.newPassword,
+  displayName: field.displayName,
   referralCode: z.string().max(32).optional(),
 });
 
 const loginSchema = z.object({
-  email: emailSchema,
-  password: z.string().max(128),
+  email: field.email,
+  password: field.existingPassword,
   // Only needed when the account has two-factor auth on.
   code: z.string().trim().max(10).optional(),
 });
 
 const profileSchema = z
   .object({
-    displayName: displayNameSchema.optional(),
-    // Preset keys are "<emblem>-<palette>"; the web app owns the list.
-    avatar: z.string().regex(/^[a-z]+-[a-z]+$/).max(32).nullable().optional(),
+    displayName: field.displayName.optional(),
+    avatar: field.avatar.nullable().optional(),
     ghostMode: z.boolean().optional(),
   })
-  .refine((d) => Object.values(d).some((v) => v !== undefined), { message: "Nothing to update" });
+  .strict()
+  .refine((d) => Object.values(d).some((v) => v !== undefined), "NOTHING_TO_UPDATE");
 
 const passwordSchema = z.object({
-  currentPassword: z.string().min(1).max(128),
-  newPassword: newPasswordSchema,
+  currentPassword: field.existingPassword,
+  newPassword: field.newPassword,
 });
 
-type UserRow = {
-  id: string;
-  email: string;
-  displayName: string;
-  avatar: string | null;
-  referralCode: string;
-  balanceCents: number;
-  totpEnabled: boolean;
-  ghostMode: boolean;
-  shared: boolean;
-  createdAt: Date;
-};
-
-// The one shape every auth endpoint returns (never the password hash).
-function publicUser(user: UserRow) {
-  return {
-    id: user.id,
-    email: user.email,
-    displayName: user.displayName,
-    avatar: user.avatar,
-    referralCode: user.referralCode,
-    balanceCents: user.balanceCents,
-    totpEnabled: user.totpEnabled,
-    ghostMode: user.ghostMode,
-    shared: user.shared,
-    createdAt: user.createdAt,
-  };
-}
-
-// Verified against when the email doesn't exist, so a miss takes as long as
-// a wrong password and response times don't reveal who has an account.
-let dummyHash: Promise<string> | undefined;
-const timingDummy = () => (dummyHash ??= argon2.hash("timing-equaliser-not-a-real-password"));
-
 export default async function authRoutes(app: FastifyInstance) {
-  const perMinute = (max: number) => ({ config: { rateLimit: { max, timeWindow: "1 minute" } } });
-
   app.post("/auth/register", perMinute(app.limits.register), async (req, reply) => {
-    if (!app.features.registration) {
-      return reply.code(403).send({ error: "Sign-ups are closed on this demo right now.", code: "REGISTRATION_CLOSED" });
-    }
-    const parsed = registerSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ error: parsed.error.flatten() });
-    }
-    const { email, password, displayName } = parsed.data;
-    const referralCode = normalizeReferralCode(parsed.data.referralCode);
+    if (!app.features.registration) fail("REGISTRATION_CLOSED");
+    const { email, password, displayName, ...body } = parse(registerSchema, req.body);
+    const referralCode = normalizeReferralCode(body.referralCode);
 
-    const existing = await app.prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return reply.code(409).send({ error: "Email already registered" });
-    }
+    await assertNameNotShared(app, displayName);
+    // Note: this reveals whether an email has an account. Without email
+    // verification there's no way to hide it on sign-up; it's rate-limited.
+    if (await app.prisma.user.findUnique({ where: { email }, select: { id: true } })) fail("EMAIL_TAKEN");
 
-    let referredBy = null;
-    if (referralCode) {
-      referredBy = await app.prisma.user.findUnique({ where: { referralCode } });
-      if (!referredBy || referredBy.bannedAt) {
-        return reply.code(400).send({ error: "Invalid referral code" });
-      }
-    }
+    const referredBy = referralCode ? await app.prisma.user.findUnique({ where: { referralCode } }) : null;
+    if (referralCode && (!referredBy || referredBy.bannedAt)) fail("REFERRAL_NOT_FOUND", { field: "referralCode" }, 400);
 
-    const passwordHash = await argon2.hash(password);
+    const passwordHash = await hashPassword(password);
 
     // New account and the referrer's bonus land together or not at all.
     const user = await app.prisma.$transaction(async (tx) => {
@@ -122,119 +80,99 @@ export default async function authRoutes(app: FastifyInstance) {
 
       // Conditional so mass sign-ups on one code can't push the referrer's
       // balance past the cap (the friend still joins, just without a bonus).
-      const credited = referredBy
-        ? await tx.user.updateMany({
-            where: { id: referredBy.id, balanceCents: { lte: MAX_BALANCE_CENTS - REFERRAL_BONUS_CENTS } },
-            data: { balanceCents: { increment: REFERRAL_BONUS_CENTS } },
-          })
-        : { count: 0 };
-      if (referredBy && credited.count) {
-        await tx.transaction.create({
-          data: {
-            userId: referredBy.id,
-            type: "REFERRAL_BONUS",
-            amountCents: REFERRAL_BONUS_CENTS,
-            note: `Referral bonus for inviting ${displayName}`,
-          },
+      if (referredBy) {
+        const { count } = await tx.user.updateMany({
+          where: { id: referredBy.id, balanceCents: { lte: MAX_BALANCE_CENTS - REFERRAL_BONUS_CENTS } },
+          data: { balanceCents: { increment: REFERRAL_BONUS_CENTS } },
         });
+        if (count) {
+          await tx.transaction.create({
+            data: {
+              userId: referredBy.id,
+              type: "REFERRAL_BONUS",
+              amountCents: REFERRAL_BONUS_CENTS,
+              note: `Referral bonus for inviting ${displayName}`,
+            },
+          });
+        }
       }
-
       return created;
     });
 
-    const token = await startSession(app, user.id, req);
-    return reply.code(201).send({ token, user: publicUser(user) });
+    await startSession(app, req, reply, user.id);
+    setDeviceCookie(req, reply, user.id);
+    return reply.code(201).send({ user: publicUser(user) });
   });
 
   app.post("/auth/login", perMinute(app.limits.login), async (req, reply) => {
-    const parsed = loginSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ error: parsed.error.flatten() });
-    }
-    const { email, password, code } = parsed.data;
-
+    const { email, password, code } = parse(loginSchema, req.body);
     const user = await app.prisma.user.findUnique({ where: { email } });
+
     // The shared demo password is public anyway; throttling it would only let
-    // one person lock everyone else out of the demo.
+    // one person lock everyone else out of the demo. And a browser that has
+    // signed in to this account before gets past the throttle, so an attacker
+    // can't lock the real owner out by failing on purpose.
     const throttled = !user?.shared;
-    const failed = (body: Record<string, unknown>) => {
+    const waitMs = throttled && !isTrustedDevice(req, user?.id) ? app.loginThrottle.blockedFor(email) : 0;
+    if (waitMs) {
+      securityEvent(req, "login_throttled", { email: emailTag(email) });
+      fail("ACCOUNT_THROTTLED", { retryAfterMs: waitMs });
+    }
+    const failed = (event: "login_failed" | "totp_failed" | "totp_replayed", code: "INVALID_CREDENTIALS" | "TOTP_INVALID") => {
       if (throttled) app.loginThrottle.fail(email);
-      return reply.code(401).send(body);
+      securityEvent(req, event, { email: emailTag(email) });
+      return fail(code, {}, 401);
     };
 
-    const waitMs = throttled ? app.loginThrottle.blockedFor(email) : 0;
-    if (waitMs) {
-      return reply.code(429).send({
-        error: "Too many failed sign-ins for this account — try again later.",
-        code: "ACCOUNT_THROTTLED",
-        retryAfterMs: waitMs,
-      });
-    }
+    if (!(await verifyPassword(user?.passwordHash ?? null, password)) || !user) return failed("login_failed", "INVALID_CREDENTIALS");
 
-    const passwordOk = user
-      ? await argon2.verify(user.passwordHash, password)
-      : (await argon2.verify(await timingDummy(), password), false);
-    if (!user || !passwordOk) return failed({ error: "Invalid credentials" });
-
+    // Checked only after the password, so none of these leak to someone guessing emails.
     if (user.bannedAt) {
-      return reply.code(403).send({ error: "This account has been suspended.", code: "BANNED" });
+      securityEvent(req, "banned_login", { userId: user.id });
+      fail("BANNED");
     }
-
-    // Checked only after the password, so neither leaks to someone guessing emails.
-    if (user.breakUntil && user.breakUntil > new Date()) {
-      return reply.code(403).send({ error: "On a break", code: "ON_BREAK", until: user.breakUntil });
-    }
-    if (user.totpEnabled && user.totpSecret) {
-      if (!code) return reply.code(401).send({ error: "Two-factor code required", code: "TOTP_REQUIRED" });
+    if (user.breakUntil && user.breakUntil > new Date()) fail("ON_BREAK", { until: user.breakUntil.toISOString() });
+    if (user.totpEnabled) {
+      if (!code) fail("TOTP_REQUIRED");
       // Wrong codes count too, or a known password would allow guessing all 10^6 codes.
-      if (!verifyTotp(user.totpSecret, code)) return failed({ error: "Invalid two-factor code", code: "TOTP_INVALID" });
+      const check = await consumeTotp(app, user, code);
+      if (check !== "ok") return failed(check === "replayed" ? "totp_replayed" : "totp_failed", "TOTP_INVALID");
     }
 
     app.loginThrottle.clear(email);
-    const token = await startSession(app, user.id, req);
-    return reply.send({ token, user: publicUser(user) });
+    await startSession(app, req, reply, user.id);
+    if (!user.shared) setDeviceCookie(req, reply, user.id);
+    return { user: publicUser(user) };
   });
 
-  app.get("/auth/me", { preHandler: [app.authenticate] }, async (req, reply) => {
-    const user = await app.prisma.user.findUnique({ where: { id: req.user.sub } });
-    if (!user) return reply.code(404).send({ error: "Not found" });
-    return publicUser(user);
+  // Who's signed in, if anyone. Never 401s, so the web app can call it on
+  // start-up without error noise; a dead cookie is cleared on the way.
+  app.get("/auth/session", async (req, reply) => {
+    const found = await app.resolveSession(req);
+    if (!found.ok && found.reason !== "none") clearSessionCookie(req, reply);
+    return { user: found.ok ? publicUser(found.user) : null };
   });
 
-  app.patch("/auth/me", { preHandler: [app.authenticate, app.denyShared] }, async (req, reply) => {
-    const parsed = profileSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ error: parsed.error.flatten() });
-    }
-    const user = await app.prisma.user.update({
-      where: { id: req.user.sub },
-      data: parsed.data,
-    });
-    return publicUser(user);
+  app.get("/auth/me", { preHandler: [app.authenticate] }, async (req) => {
+    return publicUser(await app.prisma.user.findUniqueOrThrow({ where: { id: req.user.sub } }));
+  });
+
+  app.patch("/auth/me", { preHandler: [app.authenticate, app.denyShared] }, async (req) => {
+    const data = parse(profileSchema, req.body);
+    if (data.displayName) await assertNameNotShared(app, data.displayName, req.user.sub);
+    return publicUser(await app.prisma.user.update({ where: { id: req.user.sub }, data }));
   });
 
   app.post(
     "/auth/password",
     { preHandler: [app.authenticate, app.denyShared], ...perMinute(app.limits.password) },
-    async (req, reply) => {
-      const parsed = passwordSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return reply.code(400).send({ error: parsed.error.flatten() });
-      }
-      const { currentPassword, newPassword } = parsed.data;
-
+    async (req) => {
+      const { currentPassword, newPassword } = parse(passwordSchema, req.body);
       const user = await app.prisma.user.findUniqueOrThrow({ where: { id: req.user.sub } });
-      if (!(await argon2.verify(user.passwordHash, currentPassword))) {
-        return reply.code(400).send({ error: "Current password is incorrect" });
-      }
-      if (currentPassword === newPassword) {
-        return reply.code(400).send({ error: "New password must be different from the current one" });
-      }
+      if (!(await verifyPassword(user.passwordHash, currentPassword))) fail("CURRENT_PASSWORD_WRONG", { field: "currentPassword" });
+      if (currentPassword === newPassword) fail("PASSWORD_UNCHANGED", { field: "newPassword" });
 
-      await app.prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash: await argon2.hash(newPassword) },
-      });
+      await app.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(newPassword) } });
       // A new password signs out every other device.
       const signedOut = await revokeSessions(app, user.id, req.user.sid);
       return { ok: true, signedOut };

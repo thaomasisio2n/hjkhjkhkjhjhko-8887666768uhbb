@@ -1,62 +1,47 @@
 import { defineStore } from "pinia";
-import axios from "axios";
-import { useWalletStore } from "./wallet";
+import type { PublicUser } from "@novaspin/shared";
+import { api } from "../lib/api";
 import { clearSession } from "../lib/session";
+import { useWalletStore } from "./wallet";
 
-interface User {
-  id: string;
-  email: string;
-  displayName: string;
-  avatar?: string | null;
-  referralCode: string;
-  balanceCents: number;
-  totpEnabled?: boolean;
-  ghostMode?: boolean;
-  /** The published demo login: settings that affect other visitors are read-only. */
-  shared?: boolean;
-  createdAt?: string;
-}
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+// The session itself is an httpOnly cookie this code can't see; the store
+// only mirrors who the API says is signed in.
+let checking: Promise<void> | null = null;
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
-    token: localStorage.getItem("demo_token") as string | null,
-    user: null as User | null,
+    user: null as PublicUser | null,
   }),
   getters: {
-    isAuthenticated: (state) => !!state.token,
+    isAuthenticated: (state) => !!state.user,
   },
   actions: {
+    /** Asks the API who's signed in; runs once per page load (the router awaits it). */
+    init() {
+      checking ??= api
+        .get<{ user: PublicUser | null }>("/auth/session")
+        .then(({ data }) => void (this.user = data.user))
+        .catch(() => void (this.user = null));
+      return checking;
+    },
     async register(payload: { email: string; password: string; displayName: string; referralCode?: string }) {
-      const { data } = await axios.post(`${API_URL}/auth/register`, payload);
-      this.setSession(data.token, data.user);
+      const { data } = await api.post<{ user: PublicUser }>("/auth/register", payload);
+      this.user = data.user;
     },
     async login(payload: { email: string; password: string; code?: string }) {
-      const { data } = await axios.post(`${API_URL}/auth/login`, payload);
-      this.setSession(data.token, data.user);
+      const { data } = await api.post<{ user: PublicUser }>("/auth/login", payload);
+      this.user = data.user;
     },
-    async fetchMe() {
-      if (!this.token) return;
-      const { data } = await axios.get(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${this.token}` },
-      });
+    /** Re-reads the profile (balance, 2FA state…) after it may have changed. */
+    async refresh() {
+      const { data } = await api.get<PublicUser>("/auth/me");
       this.user = data;
-    },
-    setSession(token: string, user: User) {
-      this.token = token;
-      this.user = user;
-      localStorage.setItem("demo_token", token);
     },
     /** `remote: false` when the server already ended the session (break, deletion). */
     logout({ remote = true }: { remote?: boolean } = {}) {
-      // Best effort: revoke this session server-side so the token is dead too.
-      if (remote && this.token) {
-        axios.post(`${API_URL}/auth/logout`, null, { headers: { Authorization: `Bearer ${this.token}` } }).catch(() => {});
-      }
-      this.token = null;
+      // Best effort: the API revokes the session and clears the cookie.
+      if (remote && this.user) api.post("/auth/logout").catch(() => {});
       this.user = null;
-      localStorage.removeItem("demo_token");
       clearSession();
       // Don't show the previous account's balance/history to the next login.
       useWalletStore().$reset();

@@ -5,9 +5,10 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
-import { MAX_BALANCE_CENTS, trustProxySetting } from "../src/config.js";
+import { MAX_BALANCE_CENTS } from "@novaspin/shared";
+import { trustProxySetting } from "../src/config.js";
 import { FailureThrottle } from "../src/lib/throttle.js";
-import { TEST_PASSWORD, bearer, makeApp, register, uniqueEmail } from "./helpers.js";
+import { TEST_PASSWORD, cookieFor, makeApp, register, sessionToken, uniqueEmail } from "./helpers.js";
 
 let app: FastifyInstance;
 // Plenty of sign-ups per "IP" here; the limits themselves are tested separately.
@@ -16,7 +17,7 @@ afterAll(async () => app.close());
 
 const login = (a: FastifyInstance, payload: Record<string, string>, headers: Record<string, string> = {}) =>
   a.inject({ method: "POST", url: "/auth/login", payload, headers });
-const me = (token: string) => app.inject({ method: "GET", url: "/auth/me", headers: bearer(token) });
+const me = (token: string) => app.inject({ method: "GET", url: "/auth/me", headers: cookieFor(token) });
 
 // Hand-rolled JWTs, to check the API rejects tokens it didn't issue.
 const b64url = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -27,8 +28,10 @@ function craftToken(payload: object, { alg = "HS256", secret = "test-secret" } =
 }
 const decode = (token: string) => JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
 
+let sharedCount = 0;
 async function sharedAccount() {
-  const account = await register(app);
+  // Unique names: nobody may register a name a shared account uses.
+  const account = await register(app, { displayName: `Shared Demo ${++sharedCount} ${Date.now()}` });
   await app.prisma.user.update({ where: { id: account.user.id }, data: { shared: true } });
   return account;
 }
@@ -70,7 +73,7 @@ describe("HTTP hardening", () => {
 
       const missing = await boom.inject({ method: "GET", url: "/admin" });
       expect(missing.statusCode).toBe(404);
-      expect(missing.json()).toEqual({ error: "Not found" });
+      expect(missing.json()).toEqual({ error: "Not found", code: "NOT_FOUND" });
     } finally {
       await boom.close();
     }
@@ -161,7 +164,7 @@ describe("credentials", () => {
     const change = await app.inject({
       method: "POST",
       url: "/auth/password",
-      headers: bearer(token),
+      headers: cookieFor(token),
       payload: { currentPassword: TEST_PASSWORD, newPassword: "iloveyou1" },
     });
     expect(change.statusCode).toBe(400);
@@ -231,7 +234,7 @@ describe("per-account sign-in throttle", () => {
 describe("shared demo account", () => {
   it("is flagged and can't change anything that affects other visitors", async () => {
     const demo = await sharedAccount();
-    const auth = bearer(demo.token);
+    const auth = cookieFor(demo.token);
     expect((await me(demo.token)).json().shared).toBe(true);
 
     const attempts = [
@@ -260,19 +263,19 @@ describe("shared demo account", () => {
   it("doesn't show one visitor the other visitors' sessions or let them kick each other out", async () => {
     const demo = await sharedAccount();
     const other = await login(app, { email: demo.payload.email, password: TEST_PASSWORD });
-    const otherSid = decode(other.json().token).sid;
+    const otherSid = decode(sessionToken(other)).sid;
 
-    const list = await app.inject({ method: "GET", url: "/auth/sessions", headers: bearer(demo.token) });
+    const list = await app.inject({ method: "GET", url: "/auth/sessions", headers: cookieFor(demo.token) });
     expect(list.json().sessions).toHaveLength(1);
     expect(list.json().sessions[0].current).toBe(true);
 
-    const kick = await app.inject({ method: "DELETE", url: `/auth/sessions/${otherSid}`, headers: bearer(demo.token) });
+    const kick = await app.inject({ method: "DELETE", url: `/auth/sessions/${otherSid}`, headers: cookieFor(demo.token) });
     expect(kick.statusCode).toBe(403);
-    expect((await me(other.json().token)).statusCode).toBe(200);
+    expect((await me(sessionToken(other))).statusCode).toBe(200);
 
     // Signing yourself out is still allowed.
     const ownSid = decode(demo.token).sid;
-    expect((await app.inject({ method: "DELETE", url: `/auth/sessions/${ownSid}`, headers: bearer(demo.token) })).statusCode).toBe(204);
+    expect((await app.inject({ method: "DELETE", url: `/auth/sessions/${ownSid}`, headers: cookieFor(demo.token) })).statusCode).toBe(204);
   });
 });
 
@@ -287,7 +290,7 @@ describe("suspended accounts", () => {
     expect(again.statusCode).toBe(403);
     expect(again.json().code).toBe("BANNED");
 
-    const referrals = (await app.inject({ method: "GET", url: "/referrals", headers: bearer(referrer.token) })).json();
+    const referrals = (await app.inject({ method: "GET", url: "/referrals", headers: cookieFor(referrer.token) })).json();
     expect(referrals.invited).toHaveLength(0);
     expect(referrals.invitedCount).toBe(0);
     expect((await app.inject({ method: "GET", url: `/referrals/lookup/${troll.user.referralCode}` })).statusCode).toBe(404);
@@ -295,7 +298,7 @@ describe("suspended accounts", () => {
 
   it("can be handled from the operator CLI", async () => {
     const troll = await register(app, { displayName: "Spammer" });
-    await app.inject({ method: "POST", url: "/chat/en", headers: bearer(troll.token), payload: { body: "buy my stuff please" } });
+    await app.inject({ method: "POST", url: "/chat/en", headers: cookieFor(troll.token), payload: { body: "buy my stuff please" } });
 
     const apiDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
     const out = execFileSync("npx", ["tsx", "src/cli/admin.ts", "ban", troll.payload.email.toUpperCase()], {
@@ -321,10 +324,10 @@ describe("kill switches", () => {
       expect(signup.body.code).toBe("REGISTRATION_CLOSED");
 
       const { token } = await register(app);
-      const post = await closed.inject({ method: "POST", url: "/chat/en", headers: bearer(token), payload: { body: "anyone here?" } });
+      const post = await closed.inject({ method: "POST", url: "/chat/en", headers: cookieFor(token), payload: { body: "anyone here?" } });
       expect(post.statusCode).toBe(403);
       expect(post.json().code).toBe("CHAT_CLOSED");
-      expect((await closed.inject({ method: "GET", url: "/chat/en", headers: bearer(token) })).json().open).toBe(false);
+      expect((await closed.inject({ method: "GET", url: "/chat/en", headers: cookieFor(token) })).json().open).toBe(false);
     } finally {
       await closed.close();
     }
@@ -337,10 +340,10 @@ describe("fake balance cap", () => {
     const whale = await register(app);
     await app.prisma.user.update({ where: { id: whale.user.id }, data: { balanceCents: MAX_BALANCE_CENTS - 100 } });
 
-    const topup = await app.inject({ method: "POST", url: "/wallet/topup", headers: bearer(whale.token), payload: { amountCents: 101 } });
+    const topup = await app.inject({ method: "POST", url: "/wallet/topup", headers: cookieFor(whale.token), payload: { amountCents: 101 } });
     expect(topup.statusCode).toBe(400);
     expect(topup.json().code).toBe("BALANCE_CAP");
-    expect((await app.inject({ method: "POST", url: "/wallet/topup", headers: bearer(whale.token), payload: { amountCents: 100 } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/wallet/topup", headers: cookieFor(whale.token), payload: { amountCents: 100 } })).statusCode).toBe(201);
 
     // The friend still joins; the capped referrer just doesn't get paid.
     const friend = await register(app, { referralCode: whale.user.referralCode });
@@ -355,7 +358,7 @@ describe("chat retention", () => {
     const old = await app.prisma.chatMessage.create({
       data: { room: "pl", userId: user.id, body: "stara wiadomość", createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) },
     });
-    await app.inject({ method: "POST", url: "/chat/pl", headers: bearer(token), payload: { body: "nowa wiadomość" } });
+    await app.inject({ method: "POST", url: "/chat/pl", headers: cookieFor(token), payload: { body: "nowa wiadomość" } });
     expect(await app.prisma.chatMessage.findUnique({ where: { id: old.id } })).toBeNull();
   });
 });
@@ -379,4 +382,232 @@ describe("production start-up guard", () => {
       expect(stderr, `JWT_SECRET="${secret}"`).toContain("Refusing to start");
     }
   }, 60_000);
+});
+
+describe("session cookie", () => {
+  it("is the only way in: no token in bodies, no bearer header accepted", async () => {
+    const account = await register(app);
+    expect(JSON.stringify(account.body)).not.toContain(account.token);
+    const viaHeader = await app.inject({ method: "GET", url: "/auth/me", headers: { authorization: `Bearer ${account.token}` } });
+    expect(viaHeader.statusCode).toBe(401);
+    expect((await me(account.token)).statusCode).toBe(200);
+  });
+
+  it("is Secure with the __Host- prefix on an HTTPS site, where a planted plain cookie is ignored", async () => {
+    const https = await makeApp({ limits: { register: 1000 }, secureCookies: true });
+    try {
+      const res = await https.inject({
+        method: "POST",
+        url: "/auth/register",
+        payload: { email: uniqueEmail("tls"), password: TEST_PASSWORD, displayName: "Tls User" },
+      });
+      const cookie = res.cookies.find((c) => c.name === "__Host-ns_session");
+      expect(cookie).toMatchObject({ secure: true, httpOnly: true, sameSite: "Strict", path: "/" });
+      expect(cookie?.domain).toBeUndefined();
+
+      const token = cookie!.value;
+      expect((await https.inject({ method: "GET", url: "/auth/me", headers: { cookie: `__Host-ns_session=${token}` } })).statusCode).toBe(200);
+      expect((await https.inject({ method: "GET", url: "/auth/me", headers: { cookie: `ns_session=${token}` } })).statusCode).toBe(401);
+    } finally {
+      await https.close();
+    }
+  });
+
+  it("doesn't let forwarded headers decide cookie security", async () => {
+    const plain = await makeApp({ limits: { register: 1000 }, trustProxy: trustProxySetting("1") });
+    try {
+      const res = await plain.inject({
+        method: "POST",
+        url: "/auth/register",
+        headers: { "x-forwarded-proto": "https" },
+        payload: { email: uniqueEmail("hdr"), password: TEST_PASSWORD, displayName: "Header User" },
+      });
+      expect(res.cookies.map((c) => c.name)).toContain("ns_session");
+      expect(res.cookies.map((c) => c.name)).not.toContain("__Host-ns_session");
+    } finally {
+      await plain.close();
+    }
+  });
+
+  it("reports the session without erroring, and clears dead cookies", async () => {
+    expect((await app.inject({ method: "GET", url: "/auth/session" })).json()).toEqual({ user: null });
+
+    const account = await register(app);
+    const live = await app.inject({ method: "GET", url: "/auth/session", headers: cookieFor(account.token) });
+    expect(live.json().user.id).toBe(account.user.id);
+
+    const forged = await app.inject({ method: "GET", url: "/auth/session", headers: cookieFor("not-a-jwt") });
+    expect(forged.statusCode).toBe(200);
+    expect(forged.json()).toEqual({ user: null });
+    expect(forged.cookies.find((c) => c.name === "ns_session")?.value).toBe("");
+  });
+
+  it("is cleared on logout and stops working", async () => {
+    const account = await register(app);
+    const out = await app.inject({ method: "POST", url: "/auth/logout", headers: cookieFor(account.token) });
+    expect(out.statusCode).toBe(204);
+    expect(out.cookies.find((c) => c.name === "ns_session")?.value).toBe("");
+    expect((await me(account.token)).statusCode).toBe(401);
+  });
+});
+
+describe("cross-site requests (CSRF)", () => {
+  it("refuses state changes a browser marks as coming from another site", async () => {
+    const { token } = await register(app);
+    const attempt = (headers: Record<string, string>) =>
+      app.inject({ method: "POST", url: "/wallet/topup", headers: { ...cookieFor(token), ...headers }, payload: { amountCents: 100 } });
+
+    const crossSite: Record<string, string>[] = [
+      { origin: "https://evil.example" },
+      { origin: "null" },
+      { "sec-fetch-site": "cross-site" },
+      { "sec-fetch-site": "same-site" },
+    ];
+    for (const headers of crossSite) {
+      const res = await attempt(headers);
+      expect(res.statusCode, JSON.stringify(headers)).toBe(403);
+      expect(res.json().code).toBe("FORBIDDEN_ORIGIN");
+    }
+    expect((await attempt({ origin: "http://localhost:5173", "sec-fetch-site": "same-origin" })).statusCode).toBe(201);
+    // Reads stay open to any origin; without CORS headers other sites can't see the answer anyway.
+    const read = await app.inject({ method: "GET", url: "/games", headers: { origin: "https://evil.example" } });
+    expect(read.statusCode).toBe(200);
+    expect(read.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+});
+
+describe("error contract", () => {
+  it("answers every failure with a stable code (and the field for validation)", async () => {
+    const bad = await app.inject({ method: "POST", url: "/auth/register", payload: { email: "x@y.test", password: "short", displayName: "Ok Name" } });
+    expect(bad.json()).toMatchObject({ code: "PASSWORD_TOO_SHORT", field: "password", error: "Password must be at least 8 characters" });
+
+    const malformed = await app.inject({ method: "POST", url: "/auth/login", headers: { "content-type": "application/json" }, payload: "{not json" });
+    expect(malformed.statusCode).toBe(400);
+    expect(malformed.json().code).toBe("INVALID_INPUT");
+  });
+
+  it("refuses unknown profile fields instead of silently accepting them", async () => {
+    const { token } = await register(app);
+    for (const payload of [{ shared: false }, { balanceCents: 999_999_999 }, { displayName: "Fine Name", email: "x@y.test" }]) {
+      const res = await app.inject({ method: "PATCH", url: "/auth/me", headers: cookieFor(token), payload });
+      expect(res.statusCode, JSON.stringify(payload)).toBe(400);
+    }
+    const avatar = await app.inject({ method: "PATCH", url: "/auth/me", headers: cookieFor(token), payload: { avatar: "skull-hacker" } });
+    expect(avatar.json().code).toBe("AVATAR_INVALID");
+  });
+});
+
+describe("password hashing under a flood", () => {
+  it("answers SERVER_BUSY instead of queueing without bound", async () => {
+    const flooded = await makeApp({ limits: { login: 10_000, global: 10_000, loginFailures: 10_000 } });
+    try {
+      const results = await Promise.all(
+        Array.from({ length: 90 }, (_, i) => login(flooded, { email: `flood-${i}@test.local`, password: "whatever-123" }))
+      );
+      const codes = results.map((r) => r.json().code);
+      expect(codes).toContain("SERVER_BUSY");
+      expect(codes).toContain("INVALID_CREDENTIALS");
+      expect(results.find((r) => r.json().code === "SERVER_BUSY")?.statusCode).toBe(503);
+    } finally {
+      await flooded.close();
+    }
+  }, 60_000);
+});
+
+describe("races", () => {
+  it("parallel top-ups can't slip past the daily deposit limit together", async () => {
+    const { token, user } = await register(app);
+    await app.prisma.user.update({ where: { id: user.id }, data: { depositLimitCents: 1_000 } });
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        app.inject({ method: "POST", url: "/wallet/topup", headers: cookieFor(token), payload: { amountCents: 600 } })
+      )
+    );
+    expect(results.filter((r) => r.statusCode === 201)).toHaveLength(1);
+    expect(results.filter((r) => r.json().code === "DEPOSIT_LIMIT")).toHaveLength(5);
+  });
+});
+
+describe("chat text tricks", () => {
+  it("strips invisible and direction-flipping characters and flattens zalgo", async () => {
+    const { token } = await register(app);
+    const send = (body: string) => app.inject({ method: "POST", url: "/chat/en", headers: cookieFor(token), payload: { body } });
+    expect((await send("pay‮usd​ now")).json().message.body).toBe("pay usd now");
+    expect((await send("ź̂̃̄̅a")).json().message.body).toBe("ź̂a");
+    expect((await send("​‍⁠")).json().code).toBe("CHAT_EMPTY");
+  });
+});
+
+describe("impersonation", () => {
+  it("normalises look-alike characters and refuses other scripts in usernames", async () => {
+    const cases: [string, string][] = [
+      ["\u0410dmin", "USERNAME_CHARACTERS"], // Cyrillic А
+      ["\uff53upport", "USERNAME_RESERVED"], // fullwidth ｓ folds to "support"
+      ["Ad\u0336min", "USERNAME_CHARACTERS"], // combining overlay
+      ["\u03a1aul", "USERNAME_CHARACTERS"], // Greek Ρ
+    ];
+    for (const [displayName, code] of cases) {
+      const { res } = await register(app, { displayName });
+      expect(res.json().code, JSON.stringify(displayName)).toBe(code);
+    }
+    const polish = await register(app, { displayName: "Zażółć Gęślą" });
+    expect(polish.res.statusCode).toBe(201);
+    expect(polish.user.displayName).toBe("Zażółć Gęślą");
+  });
+
+  it("keeps the published demo accounts' names for them alone", async () => {
+    const demo = await sharedAccount();
+    const lookalike = demo.user.displayName.toUpperCase().replace(/ /g, ".");
+    expect((await register(app, { displayName: lookalike })).res.json().code).toBe("USERNAME_RESERVED");
+
+    const { token } = await register(app);
+    const rename = await app.inject({ method: "PATCH", url: "/auth/me", headers: cookieFor(token), payload: { displayName: demo.user.displayName } });
+    expect(rename.json().code).toBe("USERNAME_RESERVED");
+  });
+});
+
+describe("lockout griefing", () => {
+  it("lets the owner's browser past the per-account throttle an attacker tripped", async () => {
+    const throttled = await makeApp({ limits: { login: 1000, register: 1000, loginFailures: 3 } });
+    try {
+      const owner = await register(throttled);
+      const device = owner.res.cookies.find((c) => c.name === "ns_device");
+      expect(device).toMatchObject({ httpOnly: true, sameSite: "Strict" });
+
+      const creds = { email: owner.payload.email, password: TEST_PASSWORD };
+      for (let i = 0; i < 3; i++) await login(throttled, { ...creds, password: `attacker-guess-${i}` });
+      expect((await login(throttled, creds)).json().code).toBe("ACCOUNT_THROTTLED");
+
+      const fromOwnersBrowser = await login(throttled, creds, { cookie: `ns_device=${device!.value}` });
+      expect(fromOwnersBrowser.statusCode).toBe(200);
+
+      // A forged or someone else's device cookie doesn't help.
+      for (let i = 0; i < 3; i++) await login(throttled, { ...creds, password: `attacker-guess-${i}` });
+      const forged = `${owner.user.id}.9999999999.${"A".repeat(43)}`;
+      expect((await login(throttled, creds, { cookie: `ns_device=${forged}` })).json().code).toBe("ACCOUNT_THROTTLED");
+      const other = await register(throttled);
+      const otherDevice = other.res.cookies.find((c) => c.name === "ns_device")!.value;
+      expect((await login(throttled, creds, { cookie: `ns_device=${otherDevice}` })).json().code).toBe("ACCOUNT_THROTTLED");
+    } finally {
+      await throttled.close();
+    }
+  });
+
+  it("can't have a blocked account's counter flushed out by junk keys", () => {
+    const throttle = new FailureThrottle(2, 60_000, 4);
+    throttle.fail("victim", 0);
+    throttle.fail("victim", 1);
+    for (let i = 0; i < 20; i++) throttle.fail(`junk-${i}`, 2);
+    expect(throttle.blockedFor("victim", 3)).toBeGreaterThan(0);
+  });
+});
+
+describe("shared demo balance", () => {
+  it("starts over instead of locking everyone out when a visitor fills it to the cap", async () => {
+    const demo = await sharedAccount();
+    await app.prisma.user.update({ where: { id: demo.user.id }, data: { balanceCents: MAX_BALANCE_CENTS - 10 } });
+    const res = await app.inject({ method: "POST", url: "/wallet/topup", headers: cookieFor(demo.token), payload: { amountCents: 5_000 } });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().balanceCents).toBe(5_000_000 + 5_000);
+  });
 });

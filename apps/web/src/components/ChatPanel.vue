@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useAuthStore } from "../stores/auth";
-import { CHAT_ROOMS, MAX_CHAT_LENGTH, useChatStore, type ChatRoom } from "../stores/chat";
+import { CHAT_MAX_LENGTH, CHAT_ROOMS, type ChatRoom } from "@novaspin/shared";
+import { useChatStore } from "../stores/chat";
 import { useToastStore } from "../stores/toast";
 import { useUiStore } from "../stores/ui";
 import { apiErrorMessage } from "../lib/format";
@@ -23,7 +24,7 @@ const showRules = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined;
 
 const messages = computed(() => chat.messages[chat.room]);
-const remaining = computed(() => MAX_CHAT_LENGTH - draft.value.length);
+const remaining = computed(() => CHAT_MAX_LENGTH - draft.value.length);
 
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString(intlLocale(), { hour: "2-digit", minute: "2-digit" });
 
@@ -139,7 +140,7 @@ onBeforeUnmount(() => clearInterval(timer));
         <input
           v-model="draft"
           type="text"
-          :maxlength="MAX_CHAT_LENGTH + 20"
+          :maxlength="CHAT_MAX_LENGTH + 20"
           :placeholder="t('chat.placeholder')"
           :aria-label="t('chat.placeholder')"
           class="field flex-1 py-2"

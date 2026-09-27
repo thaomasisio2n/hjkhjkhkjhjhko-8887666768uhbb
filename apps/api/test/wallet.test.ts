@@ -1,15 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { bearer, makeApp, register } from "./helpers.js";
+import { cookieFor, makeApp, register } from "./helpers.js";
 
 let app: FastifyInstance;
 beforeAll(async () => (app = await makeApp()));
 afterAll(async () => app.close());
 
 const topup = (token: string, amountCents: number) =>
-  app.inject({ method: "POST", url: "/wallet/topup", headers: bearer(token), payload: { amountCents, method: "crypto_btc" } });
+  app.inject({ method: "POST", url: "/wallet/topup", headers: cookieFor(token), payload: { amountCents, method: "crypto_btc" } });
 const setLimit = (token: string, depositLimitCents: number | null) =>
-  app.inject({ method: "PUT", url: "/wallet/limits", headers: bearer(token), payload: { depositLimitCents } });
+  app.inject({ method: "PUT", url: "/wallet/limits", headers: cookieFor(token), payload: { depositLimitCents } });
 
 describe("wallet", () => {
   it("requires auth", async () => {
@@ -22,7 +22,7 @@ describe("wallet", () => {
     expect(res.statusCode).toBe(201);
     expect(res.json()).toMatchObject({ balanceCents: 1_012_345, depositedTodayCents: 12_345, depositLimitCents: null });
 
-    const txs = (await app.inject({ method: "GET", url: "/wallet/transactions", headers: bearer(token) })).json().transactions;
+    const txs = (await app.inject({ method: "GET", url: "/wallet/transactions", headers: cookieFor(token) })).json().transactions;
     expect(txs[0]).toMatchObject({ type: "TOPUP", amountCents: 12_345, note: "Demo top-up via crypto_btc (simulated, no real payment)" });
     expect(txs.map((t: { type: string }) => t.type)).toContain("WELCOME_BONUS");
   });
@@ -40,7 +40,8 @@ describe("wallet", () => {
     expect((await topup(token, 30_000)).statusCode).toBe(201);
     const over = await topup(token, 30_000);
     expect(over.statusCode).toBe(400);
-    expect(over.json()).toMatchObject({ code: "DEPOSIT_LIMIT", remainingCents: 20_000 });
+    expect(over.json()).toMatchObject({ code: "DEPOSIT_LIMIT", amountCents: 20_000 });
+    expect(over.json().error).toContain("$200.00");
     expect((await topup(token, 20_000)).statusCode).toBe(201);
 
     // Removing the limit lifts the cap.
@@ -73,8 +74,8 @@ describe("games", () => {
 
     expect((await app.inject({ method: "GET", url: "/games/test-slot/launch" })).statusCode).toBe(401);
     const { token } = await register(app);
-    const launch = await app.inject({ method: "GET", url: "/games/test-slot/launch", headers: bearer(token) });
+    const launch = await app.inject({ method: "GET", url: "/games/test-slot/launch", headers: cookieFor(token) });
     expect(launch.json()).toMatchObject({ game: { title: "Test Slot" }, launch: { mode: "demo" } });
-    expect((await app.inject({ method: "GET", url: "/games/nope/launch", headers: bearer(token) })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: "/games/nope/launch", headers: cookieFor(token) })).statusCode).toBe(404);
   });
 });

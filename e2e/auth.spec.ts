@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { DEMO, loginAsDemo, uniqueEmail } from "./helpers";
+import { DEMO, E2E_PASSWORD, loginAsDemo, uniqueEmail } from "./helpers";
 
 test("demo account signs in to the lobby", async ({ page }) => {
   await loginAsDemo(page);
@@ -32,7 +32,7 @@ test("referral link: banner, code validation, and sign-up", async ({ page }) => 
 
   await page.getByLabel("Username").fill("Referred Viewer");
   await page.getByLabel("Email").fill(uniqueEmail("ref"));
-  await page.getByLabel("Password", { exact: true }).fill("spin-e2e-8842");
+  await page.getByLabel("Password", { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/lobby/);
   await expect(page.locator("header")).toContainText("$10,000.00");

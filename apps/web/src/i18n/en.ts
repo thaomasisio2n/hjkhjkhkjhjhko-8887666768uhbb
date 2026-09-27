@@ -1,3 +1,5 @@
+import { API_ERRORS } from "@novaspin/shared";
+
 // English source strings. `pl.ts` must mirror this shape (enforced by its type).
 const en = {
   brand: {
@@ -483,11 +485,9 @@ const en = {
     hours: "{h} h",
     hoursMinutes: "{h} h {m} min",
   },
-  errors: {
-    depositLimit: "Daily deposit limit reached — you can deposit up to {amount} more in the next 24 hours.",
-  },
-  // English API errors pass through untranslated.
-  serverErrors: {} as Record<string, string>,
+  // One message per API error code; the English ones come straight from the
+  // shared catalog the API uses, so they can't drift apart.
+  apiErrors: API_ERRORS,
 };
 
 export default en;

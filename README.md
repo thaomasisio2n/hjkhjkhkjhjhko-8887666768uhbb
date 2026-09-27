@@ -63,7 +63,7 @@ sidebar, balance + wallet button in the top bar, bottom nav on mobile.
 
 ### `apps/api` — Fastify + Prisma + SQLite
 
-JWT auth with revocable sessions (every token is bound to a session row),
+Sessions in an httpOnly cookie, each bound to a revocable session row,
 TOTP two-factor auth (RFC 6238, no third-party OTP library), break in
 play, account deletion, wallet/balance ledger with deposit limits,
 referral codes + rewards, profile/password updates, chat rooms with
@@ -71,21 +71,40 @@ moderation, and a `/games` catalog serving placeholder metadata with a
 `launchPath` shaped for an iframe game client.
 Endpoints are listed in `apps/api/README.md`.
 
+### `packages/shared`
+
+Rules (password, username and chat limits, deposit bounds, break lengths),
+avatar keys, the API's response types and its error-code catalog. Both
+apps import it, so a form can't accept what the API rejects, and every
+error code has an English and a Polish message (a test checks).
+
 ### Built to be shown publicly
 
-A demo on the internet gets poked at, so it's hardened against takeover
-and abuse (details and the threat model in [SECURITY.md](SECURITY.md)):
+A demo on the internet gets attacked, so it's hardened against takeover and
+abuse, and was checked by two independent adversarial reviews. Details and
+the threat model are in [SECURITY.md](SECURITY.md):
 
+- **One origin:** nginx serves the app and proxies `/api`; the API has no
+  public port. Sessions are httpOnly, SameSite=Strict cookies (`__Host-`
+  over HTTPS), so page scripts never see a token. On top of that, the API
+  refuses cross-site requests.
 - The published demo logins are **shared accounts**: anyone can use them,
   nobody can change their password, 2FA or profile, lock them with a break
   or a limit, delete them, or see other visitors' sessions.
-- Rate limits per IP and per account, common passwords refused, HS256-only
-  expiring tokens, a production start-up check for the JWT secret.
-- Strict security headers and CSP on both apps, generic error bodies,
-  small body limits, capped fake balances, expiring chat.
-- Non-root, read-only, capability-free containers.
-- Kill switches (`DISABLE_REGISTRATION`, `DISABLE_CHAT`) and an operator
-  CLI to ban users, clear chat and sign everyone out.
+- **Sign-in protection:** rate limits per IP and per account; device
+  cookies, so attackers can't lock real users out; one-time 2FA codes;
+  common passwords refused; look-alike usernames blocked.
+- **Resilience:** bounded password hashing under floods, race-free
+  balances and limits, strict input schemas, capped fake balances,
+  expiring chat.
+- **Headers:** a CSP that allows only this origin (the font is
+  self-hosted), plus the usual security headers everywhere.
+- **Containers:** non-root, read-only, capability-free, production
+  dependencies only, base images pinned by digest.
+- **CI:** read-only CI token, pinned actions, dependency audit, and secret
+  scanning of files, archives and history.
+- **Operations:** kill switches (`DISABLE_REGISTRATION`, `DISABLE_CHAT`) and
+  an operator CLI to ban users, clear chat and sign everyone out.
 
 ## Running locally
 
@@ -95,7 +114,8 @@ One command, from a fresh clone:
 npm start
 ```
 
-That installs dependencies for both apps, creates `apps/api/.env`, sets up
+That installs dependencies for both apps, creates `apps/api/.env` (with a
+random JWT secret), sets up
 the local SQLite database (migrate + seed 48 placeholder games), starts the
 API on `http://localhost:8787` and the web app on `http://localhost:5173`,
 and opens the web app in your browser. Ctrl+C stops both servers.
@@ -130,12 +150,14 @@ Referral links are built from `WEB_ORIGIN` in `apps/api/.env`.
 docker compose up --build
 ```
 
-Web on `http://localhost:8080`, API on `http://localhost:8787`, SQLite in
-a named volume (`api-data`). The API container migrates and seeds on every
-start. Without `JWT_SECRET` it generates a random one per start (you just
-sign in again after a restart); set `JWT_SECRET` to keep sessions. Both
-containers run as non-root users on read-only filesystems. For a public
-host, see the checklist in [SECURITY.md](SECURITY.md#hosting-checklist).
+Open `http://localhost:8080`. That's the only published port: nginx serves
+the app and forwards `/api` to the API, which isn't reachable from outside.
+SQLite lives in a named volume (`api-data`), and the API migrates and seeds
+on every start. Without `JWT_SECRET` it generates a random one per start
+(you just sign in again after a restart); set `JWT_SECRET` to keep
+sessions. Both containers run as non-root users on read-only filesystems.
+For a public host, see the checklist in
+[SECURITY.md](SECURITY.md#hosting-checklist).
 
 Upgrading from an older image whose volume belonged to root? The API says
 so on start; fix it once with
@@ -162,7 +184,8 @@ npm run test:e2e    # Playwright end-to-end suite
   hardening: security headers, body limits, forged/expired tokens, the
   per-account throttle, `X-Forwarded-For` handling, shared-account
   protection, bans (via the operator CLI), kill switches, the balance
-  cap and the production secret check.
+  cap, the production secret check, cookie sessions, CSRF, the error
+  contract, 2FA replay, device cookies, impersonation, races and floods.
 - **Web** (`apps/web/src/**/*.test.ts`) — i18n (plurals, fallbacks, and a
   check that every key used in the code exists in both languages),
   formatting, transaction notes, game art, categories, avatars, help

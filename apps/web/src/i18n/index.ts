@@ -89,10 +89,3 @@ export function tc(key: string, count: number, params?: Record<string, string | 
   const rule = new Intl.PluralRules(intlLocale()).select(count);
   return interpolate(found[rule] ?? found.other, { count, ...params });
 }
-
-/** Translate a known API error string; unknown ones pass through untouched. */
-export function translateServerError(message: string): string {
-  const map = lookup(messages[locale.value], "serverErrors") as Tree | undefined;
-  const hit = map?.[message];
-  return typeof hit === "string" ? hit : message;
-}

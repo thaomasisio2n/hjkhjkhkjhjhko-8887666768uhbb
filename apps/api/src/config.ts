@@ -1,12 +1,22 @@
+import { randomBytes } from "node:crypto";
+
 // Demo economy + URLs, shared by routes and the seed script.
 export const WELCOME_BONUS_CENTS = Number(process.env.WELCOME_BONUS_CENTS ?? 1_000_000);
 export const REFERRAL_BONUS_CENTS = Number(process.env.REFERRAL_BONUS_CENTS ?? 500_000);
-// Fake balances stop growing here ($10M), well inside the 32-bit column.
-export const MAX_BALANCE_CENTS = 1_000_000_000;
+/** What the shared demo login starts with (and returns to when it hits the cap). */
+export const SHARED_ACCOUNT_BALANCE_CENTS = 5_000_000;
 export const WEB_ORIGIN = (process.env.WEB_ORIGIN ?? "http://localhost:5173").replace(/\/+$/, "");
+// A site served over HTTPS gets Secure, __Host- cookies, whatever headers
+// the proxies in front do or don't forward.
+export const SECURE_COOKIES = WEB_ORIGIN.startsWith("https://");
 
+// The value old .env.example files shipped. It's public, so it is never
+// used: without a real secret each process gets a random one (sessions just
+// don't survive a restart). Production refuses to start without one.
 export const DEFAULT_JWT_SECRET = "change-me-in-real-life-this-is-a-demo";
-export const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
+const configuredSecret = process.env.JWT_SECRET;
+export const JWT_SECRET_IS_RANDOM = !configuredSecret || configuredSecret === DEFAULT_JWT_SECRET;
+export const JWT_SECRET: string = JWT_SECRET_IS_RANDOM || !configuredSecret ? randomBytes(32).toString("hex") : configuredSecret;
 // Tokens (and so sessions) expire after this; people just sign in again.
 export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 

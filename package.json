@@ -2,15 +2,18 @@
   "name": "casino-demo-monorepo",
   "private": true,
   "workspaces": [
+    "packages/*",
     "apps/*"
   ],
   "scripts": {
+    "postinstall": "node scripts/build-shared.mjs",
     "start": "node scripts/start.mjs",
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:web": "npm run dev --workspace=apps/web",
+    "build:shared": "npm run build --workspace=@novaspin/shared",
     "build:api": "npm run build --workspace=apps/api",
     "build:web": "npm run build --workspace=apps/web",
-    "typecheck": "npm run typecheck --workspace=apps/api && npm run typecheck --workspace=apps/web",
+    "typecheck": "npm run typecheck --workspace=@novaspin/shared && npm run typecheck --workspace=apps/api && npm run typecheck --workspace=apps/web",
     "test": "npm run test --workspace=apps/api && npm run test --workspace=apps/web",
     "test:e2e": "playwright test"
   },

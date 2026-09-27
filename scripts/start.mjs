@@ -2,7 +2,8 @@
 // One-command bootstrap for the demo: install deps, set up the local
 // SQLite db, seed placeholder games, and start both dev servers.
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, copyFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,13 +38,23 @@ console.log("Educational demo only — no real money, no real games, no real pay
 step("[1/4] Installing dependencies (first run can take a minute)...");
 run(npmBin, ["install"]);
 
+// Every checkout gets its own random JWT secret; the old public default in
+// existing .env files is replaced, since anyone could forge tokens with it.
 const envPath = path.join(apiDir, ".env");
 const envExamplePath = path.join(apiDir, ".env.example");
+const OLD_DEFAULT_SECRET = "change-me-in-real-life-this-is-a-demo";
+const withSecret = (env) =>
+  env.replace(/^JWT_SECRET=.*$/m, (line) =>
+    line === 'JWT_SECRET=""' || line.includes(OLD_DEFAULT_SECRET) ? `JWT_SECRET="${randomBytes(32).toString("hex")}"` : line
+  );
 if (!existsSync(envPath)) {
-  step("[2/4] Creating apps/api/.env from the example...");
-  copyFileSync(envExamplePath, envPath);
+  step("[2/4] Creating apps/api/.env from the example (with a random JWT secret)...");
+  writeFileSync(envPath, withSecret(readFileSync(envExamplePath, "utf8")));
 } else {
-  step("[2/4] apps/api/.env already exists, keeping it.");
+  const env = readFileSync(envPath, "utf8");
+  const updated = withSecret(env);
+  if (updated !== env) writeFileSync(envPath, updated);
+  step(`[2/4] apps/api/.env already exists, keeping it${updated !== env ? " (replaced the old public JWT secret)" : ""}.`);
 }
 
 step("[3/4] Setting up the database (migrate + seed placeholder games)...");

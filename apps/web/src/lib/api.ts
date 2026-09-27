@@ -1,30 +1,26 @@
 import axios from "axios";
-import { useAuthStore } from "../stores/auth";
+import { isApiErrorCode, type ApiErrorBody } from "@novaspin/shared";
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:8787",
-});
+// The only HTTP client in the app. It talks to /api on this same origin
+// (nginx or the Vite dev server forwards it), and the browser attaches the
+// httpOnly session cookie by itself: no token ever touches JavaScript.
+export const api = axios.create({ baseURL: "/api" });
 
-api.interceptors.request.use((config) => {
-  const auth = useAuthStore();
-  if (auth.token) {
-    config.headers.Authorization = `Bearer ${auth.token}`;
-  }
-  return config;
-});
+/** The API's error body, if this is an API error at all. */
+export function apiErrorBody(err: unknown): ApiErrorBody | undefined {
+  const data = (err as { response?: { data?: unknown } } | undefined)?.response?.data;
+  return data && typeof data === "object" && isApiErrorCode((data as ApiErrorBody).code) ? (data as ApiErrorBody) : undefined;
+}
 
-// A revoked/stale token (other device signed it out, demo DB reset) or a
-// break in play sends the user back to the login screen instead of leaving
-// the UI half-broken.
+// A revoked or expired session (another device signed it out, a break, a
+// ban) sends the user back to sign-in instead of leaving the UI half-broken.
+// A full page load also wipes every store.
 api.interceptors.response.use(undefined, (error) => {
-  const status = error?.response?.status;
-  const body = error?.response?.data;
-  const auth = useAuthStore();
-  if (status === 401 && auth.token) {
-    auth.logout({ remote: false });
+  const body = apiErrorBody(error);
+  const onSignedInPage = !["/login", "/register"].includes(window.location.pathname);
+  if (body?.code === "UNAUTHORIZED" && onSignedInPage) {
     window.location.assign("/login");
-  } else if (status === 403 && body?.code === "ON_BREAK" && auth.token) {
-    auth.logout({ remote: false });
+  } else if (body?.code === "ON_BREAK" && body.until) {
     window.location.assign(`/login?break=${encodeURIComponent(body.until)}`);
   }
   return Promise.reject(error);

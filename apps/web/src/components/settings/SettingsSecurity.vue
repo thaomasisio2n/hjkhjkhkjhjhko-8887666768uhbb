@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { PASSWORD_LENGTH, TOTP_DIGITS } from "@novaspin/shared";
 import { computed, onMounted, ref } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { useToastStore } from "../../stores/toast";
@@ -118,7 +119,7 @@ async function loadSessions() {
 }
 
 async function revoke(id: string) {
-  await api.delete(`/auth/sessions/${id}`);
+  await api.delete(`/auth/sessions/${encodeURIComponent(id)}`);
   sessions.value = sessions.value.filter((s) => s.id !== id);
   toast.push(t("toasts.sessionRevoked"), "success", "logout");
 }
@@ -145,11 +146,11 @@ onMounted(loadSessions);
           </div>
           <div>
             <label for="pw-new" class="field-label">{{ t("settings.newPassword") }}</label>
-            <input id="pw-new" v-model="newPassword" type="password" autocomplete="new-password" minlength="8" required class="field" />
+            <input id="pw-new" v-model="newPassword" type="password" autocomplete="new-password" :minlength="PASSWORD_LENGTH.min" :maxlength="PASSWORD_LENGTH.max" required class="field" />
           </div>
           <div>
             <label for="pw-confirm" class="field-label">{{ t("settings.confirmPassword") }}</label>
-            <input id="pw-confirm" v-model="confirmPassword" type="password" autocomplete="new-password" minlength="8" required class="field"
+            <input id="pw-confirm" v-model="confirmPassword" type="password" autocomplete="new-password" :minlength="PASSWORD_LENGTH.min" :maxlength="PASSWORD_LENGTH.max" required class="field"
               :class="{ '!border-red-500/60': mismatch }" />
           </div>
           <div class="flex flex-col gap-3 sm:col-span-3 sm:flex-row sm:items-center sm:justify-between">
@@ -194,9 +195,9 @@ onMounted(loadSessions);
             <div>
               <label for="totp-code" class="field-label">{{ t("settings.twoFactorCode") }}</label>
               <div class="flex flex-wrap gap-2">
-                <input id="totp-code" v-model.trim="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\d{6}" required
+                <input id="totp-code" v-model.trim="code" inputmode="numeric" autocomplete="one-time-code" :maxlength="TOTP_DIGITS" :pattern="`\\d{${TOTP_DIGITS}}`" required
                   class="field w-40 text-center font-mono text-lg tracking-[0.3em]" />
-                <button type="submit" class="btn-accent" :disabled="busy2fa || code.length !== 6">{{ t("settings.twoFactorEnable") }}</button>
+                <button type="submit" class="btn-accent" :disabled="busy2fa || code.length !== TOTP_DIGITS">{{ t("settings.twoFactorEnable") }}</button>
                 <button type="button" class="btn-ghost" @click="cancel2fa">{{ t("common.cancel") }}</button>
               </div>
             </div>
@@ -208,9 +209,9 @@ onMounted(loadSessions);
         <form v-else-if="disabling" class="mt-5 space-y-3" @submit.prevent="submitCode">
           <p class="text-sm text-ink-300">{{ t("settings.twoFactorDisableText") }}</p>
           <div class="flex flex-wrap gap-2">
-            <input v-model.trim="code" :aria-label="t('settings.twoFactorCode')" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\d{6}" required
+            <input v-model.trim="code" :aria-label="t('settings.twoFactorCode')" inputmode="numeric" autocomplete="one-time-code" :maxlength="TOTP_DIGITS" :pattern="`\\d{${TOTP_DIGITS}}`" required
               class="field w-40 text-center font-mono text-lg tracking-[0.3em]" />
-            <button type="submit" class="btn bg-red-500/15 text-red-300 hover:bg-red-500/25" :disabled="busy2fa || code.length !== 6">
+            <button type="submit" class="btn bg-red-500/15 text-red-300 hover:bg-red-500/25" :disabled="busy2fa || code.length !== TOTP_DIGITS">
               {{ t("settings.twoFactorDisable") }}
             </button>
             <button type="button" class="btn-ghost" @click="cancel2fa">{{ t("common.cancel") }}</button>

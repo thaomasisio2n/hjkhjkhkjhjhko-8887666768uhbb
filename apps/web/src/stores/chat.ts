@@ -2,18 +2,7 @@ import { defineStore } from "pinia";
 import { api } from "../lib/api";
 import { locale } from "../i18n";
 
-export type ChatRoom = "en" | "pl";
-export const CHAT_ROOMS: ChatRoom[] = ["en", "pl"];
-export const MAX_CHAT_LENGTH = 240;
-
-export interface ChatMessage {
-  id: string;
-  room: ChatRoom;
-  body: string;
-  createdAt: string;
-  mine: boolean;
-  user: { id: string; displayName: string; avatar: string | null } | null;
-}
+import type { ChatMessage, ChatRoom } from "@novaspin/shared";
 
 export const useChatStore = defineStore("chat", {
   state: () => ({

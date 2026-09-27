@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BREAK_DURATIONS, DEPOSIT_LIMIT, type BreakDuration } from "@novaspin/shared";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
@@ -20,7 +21,6 @@ const toast = useToastStore();
 const router = useRouter();
 
 // --- Deposit limit --------------------------------------------------------
-const LIMIT_PRESETS = [10_000, 50_000, 100_000, 500_000];
 const limitInput = ref<number | "">("");
 const savingLimit = ref(false);
 watch(
@@ -54,14 +54,12 @@ onBeforeUnmount(() => clearInterval(clock));
 const sessionLength = computed(() => formatDuration(now.value - started));
 
 // --- Break in play --------------------------------------------------------
-const BREAK_OPTIONS = ["1h", "24h", "7d", "30d"] as const;
-const BREAK_HOURS: Record<(typeof BREAK_OPTIONS)[number], number> = { "1h": 1, "24h": 24, "7d": 168, "30d": 720 };
-type BreakOption = (typeof BREAK_OPTIONS)[number];
-const breakChoice = ref<BreakOption>("24h");
+const BREAK_OPTIONS = Object.keys(BREAK_DURATIONS) as BreakDuration[];
+const breakChoice = ref<BreakDuration>("24h");
 const confirmingBreak = ref(false);
 const startingBreak = ref(false);
 const breakEnds = computed(() =>
-  new Date(Date.now() + BREAK_HOURS[breakChoice.value] * 3600_000).toLocaleString(intlLocale(), {
+  new Date(Date.now() + BREAK_DURATIONS[breakChoice.value] * 3600_000).toLocaleString(intlLocale(), {
     dateStyle: "medium",
     timeStyle: "short",
   })
@@ -109,7 +107,7 @@ async function startBreak() {
 
           <div class="mt-4 flex flex-wrap gap-2">
             <button
-              v-for="cents in LIMIT_PRESETS"
+              v-for="cents in DEPOSIT_LIMIT.presetsCents"
               :key="cents"
               type="button"
               class="rounded-md px-3 py-1.5 text-xs font-bold transition"
@@ -125,7 +123,7 @@ async function startBreak() {
               <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-ink-400">$</span>
               <input v-model.number="limitInput" type="number" min="10" step="1" inputmode="numeric" :aria-label="t('settings.customAria')" :placeholder="t('settings.customAmount')" class="field pl-7" />
             </div>
-            <button type="submit" class="btn-blue" :disabled="savingLimit || limitInputCents < 1000">{{ t("settings.set") }}</button>
+            <button type="submit" class="btn-blue" :disabled="savingLimit || limitInputCents < DEPOSIT_LIMIT.minCents">{{ t("settings.set") }}</button>
             <button v-if="wallet.depositLimitCents" type="button" class="btn-ghost" :disabled="savingLimit" @click="saveLimit(null)">{{ t("settings.remove") }}</button>
           </form>
           <p class="mt-2 text-xs text-ink-400">{{ t("settings.limitMin") }}</p>

@@ -1,5 +1,6 @@
 import { formatMoney } from "./money";
-import { intlLocale, t, translateServerError } from "../i18n";
+import { intlLocale, t } from "../i18n";
+import { apiErrorBody } from "./api";
 
 export const formatUsd = formatMoney;
 
@@ -36,20 +37,9 @@ export function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString(intlLocale(), { month: "short", day: "numeric", year: "numeric" });
 }
 
-// Fastify/zod errors arrive either as a string or as a flattened object.
+/** What to show for a failed API call: its code's translation, or `fallback`. */
 export function apiErrorMessage(err: unknown, fallback: string) {
-  const body = (err as { response?: { data?: { error?: unknown; code?: string; remainingCents?: number } } })?.response
-    ?.data;
-  if (body?.code === "DEPOSIT_LIMIT" && typeof body.remainingCents === "number") {
-    return t("errors.depositLimit", { amount: formatMoney(body.remainingCents) });
-  }
-  const data = body?.error;
-  if (typeof data === "string") return translateServerError(data);
-  if (data && typeof data === "object") {
-    const fields = (data as { fieldErrors?: Record<string, string[]> }).fieldErrors ?? {};
-    // The API words field errors as whole sentences ("Username must be 2–40 characters").
-    const [, messages] = Object.entries(fields)[0] ?? [];
-    if (messages?.[0]) return translateServerError(messages[0]);
-  }
-  return fallback;
+  const body = apiErrorBody(err);
+  if (!body) return fallback;
+  return t(`apiErrors.${body.code}`, body.amountCents === undefined ? undefined : { amount: formatMoney(body.amountCents) });
 }

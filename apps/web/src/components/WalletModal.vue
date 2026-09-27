@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TopupMethod } from "@novaspin/shared";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import { useWalletStore } from "../stores/wallet";
@@ -10,7 +11,6 @@ import CoinIcon from "./CoinIcon.vue";
 import Icon from "./Icon.vue";
 import { t } from "../i18n";
 
-type Method = "crypto_btc" | "crypto_eth" | "crypto_usdt";
 
 const wallet = useWalletStore();
 const ui = useUiStore();
@@ -18,7 +18,7 @@ const toast = useToastStore();
 
 const tab = ref<"deposit" | "overview">("deposit");
 const amount = ref<number | "">(100);
-const method = ref<Method>("crypto_usdt");
+const method = ref<TopupMethod>("crypto_usdt");
 const credited = ref<number | null>(null);
 const error = ref("");
 

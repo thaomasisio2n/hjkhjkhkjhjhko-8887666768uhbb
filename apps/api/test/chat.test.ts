@@ -1,16 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { moderateMessage } from "../src/lib/moderation.js";
-import { bearer, makeApp, register } from "./helpers.js";
+import { cookieFor, makeApp, register } from "./helpers.js";
 
 let app: FastifyInstance;
 beforeAll(async () => (app = await makeApp()));
 afterAll(async () => app.close());
 
 const post = (token: string, body: string, room = "en") =>
-  app.inject({ method: "POST", url: `/chat/${room}`, headers: bearer(token), payload: { body } });
+  app.inject({ method: "POST", url: `/chat/${room}`, headers: cookieFor(token), payload: { body } });
 const list = (token: string, query = "", room = "en") =>
-  app.inject({ method: "GET", url: `/chat/${room}${query}`, headers: bearer(token) });
+  app.inject({ method: "GET", url: `/chat/${room}${query}`, headers: cookieFor(token) });
 
 describe("chat moderation rules", () => {
   it("cleans whitespace and control characters", () => {
@@ -66,7 +66,7 @@ describe("chat", () => {
   it("hides ghost-mode players from others but not from themselves", async () => {
     const ghost = await register(app, { displayName: "Casper" });
     const viewer = await register(app);
-    await app.inject({ method: "PATCH", url: "/auth/me", headers: bearer(ghost.token), payload: { ghostMode: true } });
+    await app.inject({ method: "PATCH", url: "/auth/me", headers: cookieFor(ghost.token), payload: { ghostMode: true } });
     const id = (await post(ghost.token, "boo")).json().message.id;
 
     const forViewer = (await list(viewer.token)).json().messages.find((m: { id: string }) => m.id === id);
@@ -80,7 +80,7 @@ describe("chat", () => {
     try {
       const { token } = await register(limited);
       const send = (body: string) =>
-        limited.inject({ method: "POST", url: "/chat/en", headers: bearer(token), payload: { body } });
+        limited.inject({ method: "POST", url: "/chat/en", headers: cookieFor(token), payload: { body } });
       expect((await send("one")).statusCode).toBe(201);
       expect((await send("two")).statusCode).toBe(201);
       expect((await send("three")).statusCode).toBe(429);

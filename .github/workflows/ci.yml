@@ -6,17 +6,26 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The token can read the repo and nothing else, and checkout doesn't leave
+# it on disk, so no install script or downloaded tool can push with it.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Third-party code runs pinned to exact commits (tag in the comment);
+# Dependabot proposes updates.
 jobs:
   checks:
     name: Typecheck, unit tests, build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -31,26 +40,37 @@ jobs:
     name: Dependency audit and secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # full history for the secret scan
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       # Anything shipped to users (not dev tooling) with a high/critical advisory fails the build.
       - run: npm audit --omit=dev --audit-level=high
-      - name: Scan for committed secrets (gitleaks)
+      - name: Install gitleaks (checksum-verified)
         env:
           GITLEAKS_VERSION: 8.28.0
+          GITLEAKS_SHA256: a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb
         run: |
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar xz gitleaks
-          ./gitleaks dir --redact --no-banner .
+          curl -sSfL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum -c -
+          tar xzf gitleaks.tgz gitleaks
+      # Current files, looking inside archives too (a zip once hid another project's secrets).
+      - run: ./gitleaks dir --redact --no-banner --max-archive-depth 3 .
+      # Every commit's text.
+      - run: ./gitleaks git --redact --no-banner .
 
   e2e:
     name: End-to-end (Playwright)
     needs: checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -59,7 +79,7 @@ jobs:
         working-directory: apps/api
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: playwright-report
@@ -73,16 +93,20 @@ jobs:
     needs: checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - run: docker compose build
       - run: docker compose up -d --wait
-      - name: Check security headers and non-root containers
+      - name: Check the proxy, security headers and non-root containers
         run: |
-          curl -fsS http://localhost:8787/health
+          curl -fsS http://localhost:8080/api/health
           curl -fsSI http://localhost:8080/ | tee headers.txt
-          grep -qi "^content-security-policy: .*connect-src 'self' http://localhost:8787" headers.txt
+          grep -qi "^content-security-policy: .*connect-src 'self';" headers.txt
           grep -qi "^x-frame-options: DENY" headers.txt
           grep -qi "^x-robots-tag: noindex" headers.txt
+          # The API has no public port; it's only reachable through /api.
+          ! curl -fsS --max-time 3 http://localhost:8787/health
           test "$(docker compose exec -T api id -u)" != 0
           test "$(docker compose exec -T web id -u)" != 0
       - if: always()

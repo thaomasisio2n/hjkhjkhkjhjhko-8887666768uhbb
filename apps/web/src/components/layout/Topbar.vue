@@ -20,7 +20,7 @@ const menuOpen = ref(false);
 
 // Balance is kept fresh by the notification bell's polling.
 onMounted(() => {
-  if (!auth.user) auth.fetchMe().catch(() => {});
+  if (!auth.user) auth.refresh().catch(() => {});
 });
 
 function logout() {
