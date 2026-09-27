@@ -3,6 +3,8 @@ import { RouterLink } from "vue-router";
 import { PALETTES } from "../lib/gameArt";
 import GameEmblem from "../components/GameEmblem.vue";
 import Logo from "../components/Logo.vue";
+import LanguageSwitch from "../components/LanguageSwitch.vue";
+import { t } from "../i18n";
 </script>
 
 <template>
@@ -14,10 +16,11 @@ import Logo from "../components/Logo.vue";
       <GameEmblem class="h-24 w-24 sm:h-36 sm:w-36" emblem="chip" :palette="PALETTES.crimson" />
       <span class="text-[88px] font-black italic leading-none tracking-tight sm:text-[140px]">4</span>
     </div>
-    <h1 class="relative mt-6 text-2xl font-extrabold">This table doesn't exist</h1>
+    <h1 class="relative mt-6 text-2xl font-extrabold">{{ t("notFound.title") }}</h1>
     <p class="relative mt-2 max-w-sm text-sm text-ink-300">
-      The page you're looking for was moved, removed, or never dealt in the first place.
+      {{ t("notFound.text") }}
     </p>
-    <RouterLink :to="{ name: 'lobby' }" class="btn-accent relative mt-8 h-12 px-8 text-base">Back to the lobby</RouterLink>
+    <RouterLink :to="{ name: 'lobby' }" class="btn-accent relative mt-8 h-12 px-8 text-base">{{ t("notFound.cta") }}</RouterLink>
+    <LanguageSwitch size="sm" class="relative mt-8" />
   </div>
 </template>

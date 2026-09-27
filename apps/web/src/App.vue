@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "./stores/auth";
 import { useUiStore } from "./stores/ui";
@@ -12,6 +12,8 @@ import RealityCheck from "./components/RealityCheck.vue";
 import SearchOverlay from "./components/SearchOverlay.vue";
 import ToastHost from "./components/ToastHost.vue";
 import WalletModal from "./components/WalletModal.vue";
+import { locale, t } from "./i18n";
+import { setTitle } from "./lib/title";
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -30,6 +32,11 @@ function onKey(e: KeyboardEvent) {
     ui.openSearch();
   }
 }
+
+// Re-title static pages on language switch (lobby/game pages manage their own).
+watch(locale, () => {
+  if (route.meta.title && route.name !== "lobby") setTitle(t(route.meta.title));
+});
 
 onMounted(() => window.addEventListener("keydown", onKey));
 onBeforeUnmount(() => window.removeEventListener("keydown", onKey));

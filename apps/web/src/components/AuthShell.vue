@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import GameCover from "./GameCover.vue";
+import LanguageSwitch from "./LanguageSwitch.vue";
 import Logo from "./Logo.vue";
 
 defineProps<{ title: string; subtitle?: string }>();
@@ -30,8 +31,9 @@ const MOSAIC: [string, string][] = [
     </div>
 
     <div class="relative w-full max-w-[420px] animate-pop-in rounded-xl bg-ink-800 p-6 shadow-lift sm:p-8">
+      <LanguageSwitch size="sm" class="absolute right-4 top-4" />
       <div class="mb-6 flex flex-col items-center text-center">
-        <Logo size="lg" />
+        <Logo size="lg" class="mt-4 sm:mt-0" />
         <h1 class="mt-5 text-xl font-extrabold">{{ title }}</h1>
         <p v-if="subtitle" class="mt-1 text-sm text-ink-300">{{ subtitle }}</p>
       </div>

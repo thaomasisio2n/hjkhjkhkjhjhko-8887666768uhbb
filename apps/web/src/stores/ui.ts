@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
-import { formatUsd } from "../lib/format";
+import { formatMoney } from "../lib/money";
+import { t } from "../i18n";
 import { useToastStore } from "./toast";
 
 // Per-browser UI conveniences. Storage can be unavailable (private mode,
@@ -38,7 +39,7 @@ export const useUiStore = defineStore("ui", {
   getters: {
     isFavourite: (state) => (slug: string) => state.favourites.includes(slug),
     // Streamer mode masks every balance-like figure, handy when recording.
-    money: (state) => (cents: number) => (state.streamerMode ? "$•••••" : formatUsd(cents)),
+    money: (state) => (cents: number) => (state.streamerMode ? "$•••••" : formatMoney(cents)),
   },
   actions: {
     toggleSidebar() {
@@ -48,14 +49,14 @@ export const useUiStore = defineStore("ui", {
     toggleStreamerMode() {
       this.streamerMode = !this.streamerMode;
       save("ns_streamer_mode", this.streamerMode);
-      useToastStore().push(this.streamerMode ? "Streamer mode on — balances hidden" : "Streamer mode off", "info",
+      useToastStore().push(t(this.streamerMode ? "toasts.streamerOn" : "toasts.streamerOff"), "info",
         this.streamerMode ? "eye-off" : "eye");
     },
     toggleFavourite(slug: string) {
       const adding = !this.isFavourite(slug);
       this.favourites = adding ? [slug, ...this.favourites] : this.favourites.filter((s) => s !== slug);
       save("ns_favourites", this.favourites);
-      useToastStore().push(adding ? "Added to favourites" : "Removed from favourites", "success", "heart");
+      useToastStore().push(t(adding ? "toasts.favouriteAdded" : "toasts.favouriteRemoved"), "success", "heart");
     },
     clearFavourites() {
       this.favourites = [];

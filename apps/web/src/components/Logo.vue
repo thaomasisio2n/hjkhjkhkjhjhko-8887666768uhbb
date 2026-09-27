@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
+import { t } from "../i18n";
 
 withDefaults(defineProps<{ size?: "sm" | "md" | "lg" }>(), { size: "md" });
 </script>
@@ -9,7 +10,7 @@ withDefaults(defineProps<{ size?: "sm" | "md" | "lg" }>(), { size: "md" });
     to="/lobby"
     class="group inline-flex select-none items-center gap-1.5 font-black italic tracking-tight text-white"
     :class="{ 'text-lg': size === 'sm', 'text-[22px]': size === 'md', 'text-3xl': size === 'lg' }"
-    aria-label="NovaSpin home"
+    :aria-label="t('brand.home')"
   >
     <svg
       viewBox="0 0 24 24"

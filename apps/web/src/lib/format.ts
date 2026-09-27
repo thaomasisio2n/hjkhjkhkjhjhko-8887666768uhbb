@@ -1,9 +1,10 @@
-export function formatUsd(cents: number) {
-  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
-}
+import { formatMoney } from "./money";
+import { intlLocale, t, translateServerError } from "../i18n";
+
+export const formatUsd = formatMoney;
 
 export function formatDate(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
+  return new Date(iso).toLocaleString(intlLocale(), {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -23,21 +24,27 @@ export function initials(name: string | undefined | null) {
 }
 
 export function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const minutes = Math.round(diff / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
+  const diffMs = new Date(iso).getTime() - Date.now();
+  const rtf = new Intl.RelativeTimeFormat(intlLocale(), { numeric: "auto" });
+  const minutes = Math.round(diffMs / 60_000);
+  if (Math.abs(minutes) < 1) return rtf.format(0, "second");
+  if (Math.abs(minutes) < 60) return rtf.format(minutes, "minute");
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
+  if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
   const days = Math.round(hours / 24);
-  if (days < 30) return days === 1 ? "yesterday" : `${days} days ago`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  if (Math.abs(days) < 30) return rtf.format(days, "day");
+  return new Date(iso).toLocaleDateString(intlLocale(), { month: "short", day: "numeric", year: "numeric" });
 }
 
 // Fastify/zod errors arrive either as a string or as a flattened object.
 export function apiErrorMessage(err: unknown, fallback: string) {
-  const data = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
-  if (typeof data === "string") return data;
+  const body = (err as { response?: { data?: { error?: unknown; code?: string; remainingCents?: number } } })?.response
+    ?.data;
+  if (body?.code === "DEPOSIT_LIMIT" && typeof body.remainingCents === "number") {
+    return t("errors.depositLimit", { amount: formatMoney(body.remainingCents) });
+  }
+  const data = body?.error;
+  if (typeof data === "string") return translateServerError(data);
   if (data && typeof data === "object") {
     const fields = (data as { fieldErrors?: Record<string, string[]> }).fieldErrors ?? {};
     const [field, messages] = Object.entries(fields)[0] ?? [];

@@ -4,6 +4,7 @@ import { useRouter, useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { api } from "../lib/api";
 import { apiErrorMessage, formatUsd } from "../lib/format";
+import { t } from "../i18n";
 import AuthShell from "../components/AuthShell.vue";
 import Icon from "../components/Icon.vue";
 
@@ -72,7 +73,7 @@ async function submit() {
     });
     router.push({ name: "lobby" });
   } catch (e) {
-    error.value = apiErrorMessage(e, "Registration failed — check the fields and try again.");
+    error.value = apiErrorMessage(e, t("auth.registerFailed"));
   } finally {
     loading.value = false;
   }
@@ -80,7 +81,7 @@ async function submit() {
 </script>
 
 <template>
-  <AuthShell title="Create an account" subtitle="Demo account with a simulated welcome balance.">
+  <AuthShell :title="t('auth.registerTitle')" :subtitle="t('auth.registerSubtitle')">
     <div
       v-if="invitedBy && refFromLink"
       class="mb-5 flex items-center gap-3 rounded-lg border border-accent/25 bg-accent/10 p-3"
@@ -89,30 +90,29 @@ async function submit() {
         <Icon name="gift" :size="18" />
       </span>
       <p class="text-sm leading-snug">
-        <span class="font-bold">{{ invitedBy.referrerName }}</span> invited you. You'll start with
-        <span class="font-bold text-accent">{{ formatUsd(invitedBy.welcomeBonusCents) }}</span> in demo credits.
+        {{ t("auth.invitedBanner", { name: invitedBy.referrerName, amount: formatUsd(invitedBy.welcomeBonusCents) }) }}
       </p>
     </div>
 
     <form class="space-y-4" @submit.prevent="submit">
       <div>
-        <label for="reg-name" class="field-label">Username</label>
+        <label for="reg-name" class="field-label">{{ t("auth.username") }}</label>
         <input id="reg-name" v-model="displayName" type="text" autocomplete="nickname" minlength="2" maxlength="40" required class="field" />
       </div>
       <div>
-        <label for="reg-email" class="field-label">Email</label>
+        <label for="reg-email" class="field-label">{{ t("auth.email") }}</label>
         <input id="reg-email" v-model="email" type="email" autocomplete="email" required class="field" />
       </div>
       <div>
-        <label for="reg-password" class="field-label">Password</label>
+        <label for="reg-password" class="field-label">{{ t("auth.password") }}</label>
         <input id="reg-password" v-model="password" type="password" autocomplete="new-password" minlength="8" required class="field" />
-        <p class="mt-1.5 text-xs text-ink-400">At least 8 characters.</p>
+        <p class="mt-1.5 text-xs text-ink-400">{{ t("auth.passwordHint") }}</p>
       </div>
 
       <div>
         <button type="button" class="flex items-center gap-1.5 text-sm font-semibold text-ink-300 hover:text-white"
           :aria-expanded="showReferral" @click="showReferral = !showReferral">
-          Referral code (optional)
+          {{ t("auth.referralOptional") }}
           <Icon name="chevron-down" :size="14" class="transition" :class="{ 'rotate-180': showReferral }" />
         </button>
         <template v-if="showReferral">
@@ -120,7 +120,7 @@ async function submit() {
             <input
               v-model.trim="referralCode"
               type="text"
-              aria-label="Referral code"
+              :aria-label="t('auth.referralCode')"
               placeholder="e.g. DEMO0001"
               autocapitalize="characters"
               spellcheck="false"
@@ -136,9 +136,9 @@ async function submit() {
               <Icon v-else-if="lookup.state === 'invalid'" name="x" :size="18" :stroke="3" class="text-red-400" />
             </span>
           </div>
-          <p v-if="invitedBy" class="mt-1.5 text-xs font-semibold text-accent">Invited by {{ invitedBy.referrerName }}</p>
+          <p v-if="invitedBy" class="mt-1.5 text-xs font-semibold text-accent">{{ t("auth.invitedBy", { name: invitedBy.referrerName }) }}</p>
           <p v-else-if="lookup.state === 'invalid'" class="mt-1.5 text-xs font-semibold text-red-300">
-            This code doesn't exist. Check it or leave the field empty.
+            {{ t("auth.codeInvalid") }}
           </p>
         </template>
       </div>
@@ -146,13 +146,13 @@ async function submit() {
       <p v-if="error" class="rounded-md bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300">{{ error }}</p>
 
       <button type="submit" :disabled="loading || blocked" class="btn-accent h-12 w-full text-base">
-        {{ loading ? "Creating account…" : "Create account" }}
+        {{ loading ? t("auth.creatingAccount") : t("auth.createAccount") }}
       </button>
     </form>
 
     <p class="mt-6 text-center text-sm text-ink-300">
-      Already have an account?
-      <RouterLink to="/login" class="font-bold text-white hover:underline">Sign in</RouterLink>
+      {{ t("auth.haveAccount") }}
+      <RouterLink to="/login" class="font-bold text-white hover:underline">{{ t("auth.signInLink") }}</RouterLink>
     </p>
   </AuthShell>
 </template>

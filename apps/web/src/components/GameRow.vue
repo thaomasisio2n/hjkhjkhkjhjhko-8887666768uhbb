@@ -4,6 +4,7 @@ import type { Game } from "../stores/games";
 import type { IconName } from "../lib/icons";
 import GameCard from "./GameCard.vue";
 import Icon from "./Icon.vue";
+import { t } from "../i18n";
 
 defineProps<{ title: string; icon: IconName; games: Game[]; loading?: boolean }>();
 const emit = defineEmits<{ viewAll: [] }>();
@@ -27,16 +28,16 @@ function scroll(dir: -1 | 1) {
       <div class="flex items-center gap-1.5">
         <button type="button" class="hidden rounded-md px-3 py-1.5 text-xs font-semibold text-ink-300 transition hover:bg-ink-700 hover:text-white sm:block"
           @click="emit('viewAll')">
-          View all
+          {{ t("common.viewAll") }}
         </button>
         <div class="flex overflow-hidden rounded-full border-2 border-ink-600">
           <button type="button" class="flex h-7 w-9 items-center justify-center text-ink-300 transition hover:bg-ink-600 hover:text-white"
-            aria-label="Scroll left" @click="scroll(-1)">
+:aria-label="t('common.scrollLeft')" @click="scroll(-1)">
             <Icon name="chevron-left" :size="16" />
           </button>
           <span class="w-0.5 bg-ink-600" />
           <button type="button" class="flex h-7 w-9 items-center justify-center text-ink-300 transition hover:bg-ink-600 hover:text-white"
-            aria-label="Scroll right" @click="scroll(1)">
+:aria-label="t('common.scrollRight')" @click="scroll(1)">
             <Icon name="chevron-right" :size="16" />
           </button>
         </div>

@@ -31,7 +31,9 @@ an iframe, e.g. `?gameid=...&mode=demo&token=...`):
   handy when recording), responsible-play tools (a daily deposit limit the
   API enforces, and a "reality check" reminder showing session time and
   deposits), wallet history filters with CSV export, a 404 page, an
-  animated launch splash on the game page, a game page with the iframe slot left as a placeholder, a wallet page + a fake "crypto pay"
+  animated launch splash on the game page, a full Polish/English UI
+  (auto-detected from the browser, switchable in the sidebar, Settings,
+  footer and on the auth screens — dictionaries in `apps/web/src/i18n`), a game page with the iframe slot left as a placeholder, a wallet page + a fake "crypto pay"
   deposit modal that always instantly credits the balance (no blockchain,
   no processor — it's a demo button), and a referral dashboard (code,
   invited users, earned bonus). Game cover art is generated procedurally

@@ -10,6 +10,8 @@ import { apiErrorMessage, formatUsd, initials } from "../lib/format";
 import { formatDuration, sessionStart } from "../lib/session";
 import type { IconName } from "../lib/icons";
 import Icon from "../components/Icon.vue";
+import LanguageSwitch from "../components/LanguageSwitch.vue";
+import { intlLocale, t } from "../i18n";
 
 const auth = useAuthStore();
 const ui = useUiStore();
@@ -24,26 +26,29 @@ onMounted(() => {
 
 const memberSince = computed(() =>
   auth.user?.createdAt
-    ? new Date(auth.user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    ? // A full date keeps Polish in the genitive ("27 września 2026", not "wrzesień").
+      new Date(auth.user.createdAt).toLocaleDateString(intlLocale(), { day: "numeric", month: "long", year: "numeric" })
     : "—"
 );
 
 const stats = computed<{ label: string; value: string; icon: IconName; wide?: boolean }[]>(() => [
-  { label: "Balance", value: ui.money(wallet.balanceCents), icon: "wallet", wide: true },
-  { label: "Favourites", value: String(ui.favourites.length), icon: "heart" },
-  { label: "Played", value: String(ui.recent.length), icon: "history" },
+  { label: t("settings.statBalance"), value: ui.money(wallet.balanceCents), icon: "wallet", wide: true },
+  { label: t("settings.statFavourites"), value: String(ui.favourites.length), icon: "heart" },
+  { label: t("settings.statPlayed"), value: String(ui.recent.length), icon: "history" },
 ]);
 
 const preferences = computed(() => [
   {
-    title: "Streamer mode",
-    text: "Hide your balance and amounts everywhere on screen — useful when recording or streaming.",
+    id: "streamer",
+    title: t("settings.streamerTitle"),
+    text: t("settings.streamerText"),
     on: ui.streamerMode,
     toggle: () => ui.toggleStreamerMode(),
   },
   {
-    title: "Compact sidebar",
-    text: "Collapse the desktop sidebar to icons only.",
+    id: "compact",
+    title: t("settings.compactTitle"),
+    text: t("settings.compactText"),
     on: ui.sidebarCollapsed,
     toggle: () => ui.toggleSidebar(),
     desktopOnly: true,
@@ -69,9 +74,9 @@ async function saveProfile() {
     const { data } = await api.patch("/auth/me", { displayName: displayName.value.trim() });
     auth.user = data;
     displayName.value = data.displayName;
-    toast.push("Profile updated", "success", "user");
+    toast.push(t("toasts.profileUpdated"), "success", "user");
   } catch (e) {
-    profileError.value = apiErrorMessage(e, "Couldn't save your profile.");
+    profileError.value = apiErrorMessage(e, t("settings.profileFailed"));
   } finally {
     savingProfile.value = false;
   }
@@ -92,9 +97,9 @@ async function changePassword() {
   try {
     await api.post("/auth/password", { currentPassword: currentPassword.value, newPassword: newPassword.value });
     currentPassword.value = newPassword.value = confirmPassword.value = "";
-    toast.push("Password changed", "success", "lock");
+    toast.push(t("toasts.passwordChanged"), "success", "lock");
   } catch (e) {
-    passwordError.value = apiErrorMessage(e, "Couldn't change your password.");
+    passwordError.value = apiErrorMessage(e, t("settings.passwordFailed"));
   } finally {
     savingPassword.value = false;
   }
@@ -119,9 +124,9 @@ async function saveLimit(cents: number | null) {
   savingLimit.value = true;
   try {
     await wallet.setDepositLimit(cents);
-    toast.push(cents ? `Daily deposit limit set to ${formatUsd(cents)}` : "Daily deposit limit removed", "success", "shield");
+    toast.push(cents ? t("toasts.limitSet", { amount: formatUsd(cents) }) : t("toasts.limitRemoved"), "success", "shield");
   } catch (e) {
-    toast.push(apiErrorMessage(e, "Couldn't update your limit."), "error");
+    toast.push(apiErrorMessage(e, t("toasts.limitFailed")), "error");
   } finally {
     savingLimit.value = false;
   }
@@ -135,12 +140,12 @@ const sessionLength = computed(() => formatDuration(now.value - started));
 
 function clearRecent() {
   ui.clearRecent();
-  toast.push("Recently played cleared", "success", "history");
+  toast.push(t("toasts.recentCleared"), "success", "history");
 }
 
 function clearFavourites() {
   ui.clearFavourites();
-  toast.push("Favourites cleared", "success", "heart");
+  toast.push(t("toasts.favouritesCleared"), "success", "heart");
 }
 
 function logout() {
@@ -152,7 +157,7 @@ function logout() {
 <template>
   <div class="page space-y-6 py-6 sm:py-8">
     <h1 class="flex items-center gap-2 text-2xl font-extrabold tracking-tight">
-      <Icon name="settings" :size="22" class="text-ink-300" /> Settings
+      <Icon name="settings" :size="22" class="text-ink-300" /> {{ t("settings.title") }}
     </h1>
 
     <!-- Profile -->
@@ -161,9 +166,9 @@ function logout() {
         {{ initials(auth.user?.displayName) }}
       </span>
       <div class="min-w-0 flex-1">
-        <p class="truncate text-lg font-extrabold">{{ auth.user?.displayName ?? "Player" }}</p>
+        <p class="truncate text-lg font-extrabold">{{ auth.user?.displayName ?? t("topbar.player") }}</p>
         <p class="truncate text-sm text-ink-300">{{ auth.user?.email }}</p>
-        <p class="mt-1 text-xs text-ink-400">Member since {{ memberSince }}</p>
+        <p class="mt-1 text-xs text-ink-400">{{ t("settings.memberSince", { date: memberSince }) }}</p>
       </div>
       <div class="grid grid-cols-2 gap-2 sm:w-[420px] sm:grid-cols-3">
         <div v-for="s in stats" :key="s.label" class="rounded-lg bg-ink-800 px-3 py-3" :class="{ 'col-span-2 sm:col-span-1': s.wide }">
@@ -178,9 +183,9 @@ function logout() {
     <div class="grid gap-6 lg:grid-cols-2">
       <!-- Preferences -->
       <section>
-        <h2 class="mb-3 text-lg font-bold">Preferences</h2>
+        <h2 class="mb-3 text-lg font-bold">{{ t("settings.preferences") }}</h2>
         <div class="panel divide-y divide-ink-600">
-          <div v-for="p in preferences" :key="p.title" class="items-center gap-4 p-5" :class="p.desktopOnly ? 'hidden lg:flex' : 'flex'">
+          <div v-for="p in preferences" :key="p.id" class="items-center gap-4 p-5" :class="p.desktopOnly ? 'hidden lg:flex' : 'flex'">
             <div class="flex-1">
               <p class="font-bold">{{ p.title }}</p>
               <p class="mt-0.5 text-sm text-ink-300">{{ p.text }}</p>
@@ -197,25 +202,32 @@ function logout() {
               <span class="absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all" :class="p.on ? 'left-6' : 'left-1'" />
             </button>
           </div>
+          <div class="flex items-center gap-4 p-5">
+            <div class="flex-1">
+              <p class="font-bold">{{ t("settings.languageTitle") }}</p>
+              <p class="mt-0.5 text-sm text-ink-300">{{ t("settings.languageText") }}</p>
+            </div>
+            <LanguageSwitch />
+          </div>
         </div>
       </section>
 
       <!-- Profile -->
       <section>
-        <h2 class="mb-3 text-lg font-bold">Profile</h2>
+        <h2 class="mb-3 text-lg font-bold">{{ t("settings.profile") }}</h2>
         <form class="panel space-y-4 p-5" @submit.prevent="saveProfile">
           <div>
-            <label for="set-name" class="field-label">Username</label>
+            <label for="set-name" class="field-label">{{ t("auth.username") }}</label>
             <input id="set-name" v-model="displayName" type="text" minlength="2" maxlength="40" required autocomplete="nickname" class="field" />
-            <p class="mt-1.5 text-xs text-ink-400">Shown to friends you invite and in the top bar.</p>
+            <p class="mt-1.5 text-xs text-ink-400">{{ t("settings.usernameHint") }}</p>
           </div>
           <div>
-            <label for="set-email" class="field-label">Email</label>
+            <label for="set-email" class="field-label">{{ t("auth.email") }}</label>
             <input id="set-email" :value="auth.user?.email ?? ''" readonly class="field cursor-not-allowed text-ink-400" />
           </div>
           <p v-if="profileError" class="rounded-md bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300">{{ profileError }}</p>
           <button type="submit" class="btn-blue" :disabled="!profileDirty || savingProfile || displayName.trim().length < 2">
-            {{ savingProfile ? "Saving…" : "Save changes" }}
+            {{ savingProfile ? t("settings.saving") : t("settings.saveChanges") }}
           </button>
         </form>
       </section>
@@ -223,27 +235,27 @@ function logout() {
 
     <!-- Security -->
     <section>
-      <h2 class="mb-3 text-lg font-bold">Security</h2>
+      <h2 class="mb-3 text-lg font-bold">{{ t("settings.security") }}</h2>
       <form class="panel grid gap-4 p-5 sm:grid-cols-3" @submit.prevent="changePassword">
         <div>
-          <label for="pw-current" class="field-label">Current password</label>
+          <label for="pw-current" class="field-label">{{ t("settings.currentPassword") }}</label>
           <input id="pw-current" v-model="currentPassword" type="password" autocomplete="current-password" required class="field" />
         </div>
         <div>
-          <label for="pw-new" class="field-label">New password</label>
+          <label for="pw-new" class="field-label">{{ t("settings.newPassword") }}</label>
           <input id="pw-new" v-model="newPassword" type="password" autocomplete="new-password" minlength="8" required class="field" />
         </div>
         <div>
-          <label for="pw-confirm" class="field-label">Confirm new password</label>
+          <label for="pw-confirm" class="field-label">{{ t("settings.confirmPassword") }}</label>
           <input id="pw-confirm" v-model="confirmPassword" type="password" autocomplete="new-password" minlength="8" required class="field"
             :class="{ '!border-red-500/60': mismatch }" />
         </div>
         <div class="flex flex-col gap-3 sm:col-span-3 sm:flex-row sm:items-center sm:justify-between">
           <p class="text-xs" :class="mismatch ? 'font-semibold text-red-300' : 'text-ink-400'">
-            {{ mismatch ? "Passwords don't match." : "At least 8 characters. You'll stay signed in on this device." }}
+            {{ mismatch ? t("settings.passwordsMismatch") : t("settings.passwordHint") }}
           </p>
           <button type="submit" class="btn-blue" :disabled="savingPassword || mismatch || !currentPassword || newPassword.length < 8">
-            <Icon name="lock" :size="16" /> {{ savingPassword ? "Updating…" : "Change password" }}
+            <Icon name="lock" :size="16" /> {{ savingPassword ? t("settings.updating") : t("settings.changePassword") }}
           </button>
         </div>
         <p v-if="passwordError" class="rounded-md bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 sm:col-span-3">{{ passwordError }}</p>
@@ -252,22 +264,22 @@ function logout() {
 
     <!-- Responsible play -->
     <section>
-      <h2 class="mb-3 flex items-center gap-2 text-lg font-bold"><Icon name="shield" :size="18" class="text-ink-300" /> Responsible play</h2>
+      <h2 class="mb-3 flex items-center gap-2 text-lg font-bold"><Icon name="shield" :size="18" class="text-ink-300" /> {{ t("settings.responsible") }}</h2>
       <div class="grid gap-4 lg:grid-cols-2">
         <div class="panel p-5">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <p class="font-bold">Daily deposit limit</p>
-              <p class="mt-0.5 text-sm text-ink-300">Caps deposits in any rolling 24 hours. The API enforces it.</p>
+              <p class="font-bold">{{ t("settings.limitTitle") }}</p>
+              <p class="mt-0.5 text-sm text-ink-300">{{ t("settings.limitText") }}</p>
             </div>
             <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-bold" :class="wallet.depositLimitCents ? 'bg-accent/15 text-accent' : 'bg-ink-600 text-ink-300'">
-              {{ wallet.depositLimitCents ? formatUsd(wallet.depositLimitCents) : "No limit" }}
+              {{ wallet.depositLimitCents ? formatUsd(wallet.depositLimitCents) : t("settings.noLimit") }}
             </span>
           </div>
 
           <div v-if="wallet.depositLimitCents" class="mt-4">
             <div class="flex justify-between text-xs font-semibold text-ink-300">
-              <span>Used in the last 24 h</span>
+              <span>{{ t("settings.limitUsed") }}</span>
               <span class="tabular-nums">{{ formatUsd(wallet.depositedTodayCents) }} / {{ formatUsd(wallet.depositLimitCents) }}</span>
             </div>
             <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-ink-800">
@@ -291,18 +303,18 @@ function logout() {
           <form class="mt-3 flex gap-2" @submit.prevent="saveLimit(limitInputCents)">
             <div class="relative flex-1">
               <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-ink-400">$</span>
-              <input v-model.number="limitInput" type="number" min="10" step="1" inputmode="numeric" aria-label="Custom daily limit in USD" placeholder="Custom amount" class="field pl-7" />
+              <input v-model.number="limitInput" type="number" min="10" step="1" inputmode="numeric" :aria-label="t('settings.customAria')" :placeholder="t('settings.customAmount')" class="field pl-7" />
             </div>
-            <button type="submit" class="btn-blue" :disabled="savingLimit || limitInputCents < 1000">Set</button>
-            <button v-if="wallet.depositLimitCents" type="button" class="btn-ghost" :disabled="savingLimit" @click="saveLimit(null)">Remove</button>
+            <button type="submit" class="btn-blue" :disabled="savingLimit || limitInputCents < 1000">{{ t("settings.set") }}</button>
+            <button v-if="wallet.depositLimitCents" type="button" class="btn-ghost" :disabled="savingLimit" @click="saveLimit(null)">{{ t("settings.remove") }}</button>
           </form>
-          <p class="mt-2 text-xs text-ink-400">Minimum $10.</p>
+          <p class="mt-2 text-xs text-ink-400">{{ t("settings.limitMin") }}</p>
         </div>
 
         <div class="panel p-5">
-          <p class="font-bold">Reality check</p>
-          <p class="mt-0.5 text-sm text-ink-300">Get a reminder of how long you've been here, at a set interval.</p>
-          <div class="mt-4 inline-flex rounded-full bg-ink-900 p-1" role="radiogroup" aria-label="Reality check interval">
+          <p class="font-bold">{{ t("settings.realityTitle") }}</p>
+          <p class="mt-0.5 text-sm text-ink-300">{{ t("settings.realityText") }}</p>
+          <div class="mt-4 inline-flex rounded-full bg-ink-900 p-1" role="radiogroup" :aria-label="t('settings.realityAria')">
             <button
               v-for="m in REALITY_OPTIONS"
               :key="m"
@@ -313,13 +325,13 @@ function logout() {
               :class="ui.realityCheckMinutes === m ? 'bg-ink-600 text-white' : 'text-ink-300 hover:text-white'"
               @click="ui.setRealityCheck(m)"
             >
-              {{ m ? `${m} min` : "Off" }}
+              {{ m ? t("settings.minutes", { count: m }) : t("settings.off") }}
             </button>
           </div>
           <div class="mt-5 flex items-center gap-3 rounded-lg bg-ink-800 p-3">
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue/15 text-blue-hover"><Icon name="clock" :size="17" /></span>
             <div>
-              <p class="text-xs font-semibold uppercase tracking-wide text-ink-400">Current session</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-ink-400">{{ t("settings.currentSession") }}</p>
               <p class="font-bold">{{ sessionLength }}</p>
             </div>
           </div>
@@ -329,20 +341,20 @@ function logout() {
 
     <!-- Data -->
     <section>
-      <h2 class="mb-3 text-lg font-bold">Browser data</h2>
+      <h2 class="mb-3 text-lg font-bold">{{ t("settings.browserData") }}</h2>
       <div class="panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
         <p class="flex-1 text-sm text-ink-300">
-          Favourites, recently played and your preferences are stored in this browser only.
+          {{ t("settings.browserDataText") }}
         </p>
         <div class="flex flex-wrap gap-2">
           <button type="button" class="btn-ghost" :disabled="!ui.recent.length" @click="clearRecent">
-            <Icon name="history" :size="16" /> Clear recent
+            <Icon name="history" :size="16" /> {{ t("settings.clearRecent") }}
           </button>
           <button type="button" class="btn-ghost" :disabled="!ui.favourites.length" @click="clearFavourites">
-            <Icon name="trash" :size="16" /> Clear favourites
+            <Icon name="trash" :size="16" /> {{ t("settings.clearFavourites") }}
           </button>
           <button type="button" class="btn bg-red-500/15 text-red-300 hover:bg-red-500/25" @click="logout">
-            <Icon name="logout" :size="16" /> Log out
+            <Icon name="logout" :size="16" /> {{ t("settings.logout") }}
           </button>
         </div>
       </div>

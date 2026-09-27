@@ -9,6 +9,7 @@ import CoinIcon from "../CoinIcon.vue";
 import Icon from "../Icon.vue";
 import Logo from "../Logo.vue";
 import NotificationBell from "../NotificationBell.vue";
+import { t } from "../../i18n";
 
 const auth = useAuthStore();
 const wallet = useWalletStore();
@@ -44,12 +45,12 @@ function logout() {
           <span class="truncate">{{ ui.money(wallet.balanceCents) }}</span>
           <CoinIcon coin="usd" :size="16" />
           <span class="hidden rounded bg-amber-400/15 px-1 py-px text-[9px] font-extrabold uppercase tracking-wider text-amber-300 md:inline">
-            demo
+            {{ t("common.demo") }}
           </span>
         </button>
         <button type="button" class="btn-blue h-10 rounded-l-none px-3 sm:px-4" @click="ui.openWallet()">
           <Icon name="wallet" :size="18" class="sm:hidden" />
-          <span class="hidden sm:inline">Wallet</span>
+          <span class="hidden sm:inline">{{ t("nav.wallet") }}</span>
         </button>
       </div>
 
@@ -60,7 +61,7 @@ function logout() {
           @click="ui.openSearch()"
         >
           <Icon name="search" :size="18" class="text-ink-300" />
-          <span class="hidden md:inline">Search</span>
+          <span class="hidden md:inline">{{ t("nav.search") }}</span>
           <kbd class="hidden rounded border border-ink-600 px-1.5 text-[11px] font-bold text-ink-400 lg:inline">/</kbd>
         </button>
 
@@ -88,32 +89,32 @@ function logout() {
             >
               <span class="absolute -top-1.5 right-4 h-3 w-3 rotate-45 bg-white" />
               <div class="relative border-b border-slate-200 px-4 pb-2.5 pt-1.5">
-                <p class="truncate text-sm font-bold">{{ auth.user?.displayName ?? "Player" }}</p>
+                <p class="truncate text-sm font-bold">{{ auth.user?.displayName ?? t("topbar.player") }}</p>
                 <p class="truncate text-xs text-slate-500">{{ auth.user?.email }}</p>
               </div>
               <RouterLink :to="{ name: 'wallet' }" class="flex items-center gap-3 px-4 py-2 text-sm font-semibold hover:bg-slate-100" @click="menuOpen = false">
-                <Icon name="wallet" :size="16" class="text-slate-500" /> Wallet
+                <Icon name="wallet" :size="16" class="text-slate-500" /> {{ t("nav.wallet") }}
               </RouterLink>
               <RouterLink :to="{ name: 'referrals' }" class="flex items-center gap-3 px-4 py-2 text-sm font-semibold hover:bg-slate-100" @click="menuOpen = false">
-                <Icon name="users" :size="16" class="text-slate-500" /> Refer &amp; Earn
+                <Icon name="users" :size="16" class="text-slate-500" /> {{ t("nav.refer") }}
               </RouterLink>
               <RouterLink :to="{ name: 'lobby', query: { tab: 'favourites' } }" class="flex items-center gap-3 px-4 py-2 text-sm font-semibold hover:bg-slate-100" @click="menuOpen = false">
-                <Icon name="heart" :size="16" class="text-slate-500" /> Favourites
+                <Icon name="heart" :size="16" class="text-slate-500" /> {{ t("nav.favourites") }}
               </RouterLink>
               <RouterLink :to="{ name: 'settings' }" class="flex items-center gap-3 px-4 py-2 text-sm font-semibold hover:bg-slate-100" @click="menuOpen = false">
-                <Icon name="settings" :size="16" class="text-slate-500" /> Settings
+                <Icon name="settings" :size="16" class="text-slate-500" /> {{ t("nav.settings") }}
               </RouterLink>
               <button type="button" role="menuitemcheckbox" :aria-checked="ui.streamerMode"
                 class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm font-semibold hover:bg-slate-100" @click="ui.toggleStreamerMode()">
                 <Icon :name="ui.streamerMode ? 'eye-off' : 'eye'" :size="16" class="text-slate-500" />
-                <span class="flex-1">Streamer mode</span>
+                <span class="flex-1">{{ t("topbar.streamerMode") }}</span>
                 <span class="relative h-5 w-9 rounded-full transition" :class="ui.streamerMode ? 'bg-accent' : 'bg-slate-300'">
                   <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all" :class="ui.streamerMode ? 'left-[18px]' : 'left-0.5'" />
                 </span>
               </button>
               <div class="my-1 border-t border-slate-200" />
               <button type="button" class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm font-semibold hover:bg-slate-100" @click="logout">
-                <Icon name="logout" :size="16" class="text-slate-500" /> Log out
+                <Icon name="logout" :size="16" class="text-slate-500" /> {{ t("topbar.logout") }}
               </button>
             </div>
           </template>

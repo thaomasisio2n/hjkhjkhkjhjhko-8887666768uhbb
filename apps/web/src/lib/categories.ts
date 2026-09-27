@@ -1,4 +1,5 @@
 import type { IconName } from "./icons";
+import { t } from "../i18n";
 
 export interface CategoryMeta {
   name: string;
@@ -17,6 +18,14 @@ const KNOWN: CategoryMeta[] = [
 
 export function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+/** Localised display name; the API's English name is the fallback. */
+export function categoryLabel(name: string) {
+  const meta = categoryMeta(name);
+  const key = `categories.${meta.slug}`;
+  const label = t(key);
+  return label === key ? name : label;
 }
 
 export function categoryMeta(name: string): CategoryMeta {

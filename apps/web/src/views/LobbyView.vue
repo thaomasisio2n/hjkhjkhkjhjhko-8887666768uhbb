@@ -3,7 +3,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useGamesStore, type Game } from "../stores/games";
 import { useUiStore } from "../stores/ui";
-import { sortCategories } from "../lib/categories";
+import { categoryLabel, sortCategories } from "../lib/categories";
+import { t, tc } from "../i18n";
 import { setTitle } from "../lib/title";
 import { PALETTES, type Emblem, type Palette } from "../lib/gameArt";
 import type { IconName } from "../lib/icons";
@@ -33,10 +34,10 @@ watch(
 const categories = computed(() => sortCategories(Object.keys(games.byCategory)));
 
 const tabs = computed<{ slug: string; label: string; icon: IconName }[]>(() => [
-  { slug: "lobby", label: "Lobby", icon: "lobby" },
-  ...categories.value.map((c) => ({ slug: c.slug, label: c.name, icon: c.icon })),
-  { slug: "favourites", label: "Favourites", icon: "heart" },
-  { slug: "recent", label: "Recent", icon: "history" },
+  { slug: "lobby", label: t("nav.lobby"), icon: "lobby" },
+  ...categories.value.map((c) => ({ slug: c.slug, label: categoryLabel(c.name), icon: c.icon })),
+  { slug: "favourites", label: t("nav.favourites"), icon: "heart" },
+  { slug: "recent", label: t("nav.recent"), icon: "history" },
 ]);
 
 const tab = computed(() => {
@@ -44,14 +45,14 @@ const tab = computed(() => {
   return tabs.value.some((x) => x.slug === t) || !games.loaded ? t : "lobby";
 });
 
-const activeTab = computed(() => tabs.value.find((t) => t.slug === tab.value));
+const activeTab = computed(() => tabs.value.find((x) => x.slug === tab.value));
 
 // Guarded by route name: during the leave transition this view still reacts to
 // the next route, and must not overwrite that page's title.
 watch(
   activeTab,
-  (t) => {
-    if (route.name === "lobby") setTitle(t && t.slug !== "lobby" ? t.label : "Casino");
+  (active) => {
+    if (route.name === "lobby") setTitle(active && active.slug !== "lobby" ? active.label : t("titles.casino"));
   },
   { immediate: true }
 );
@@ -93,7 +94,9 @@ const gridGames = computed(() => {
 const results = computed(() => {
   const q = query.value.trim().toLowerCase();
   if (!q) return null;
-  return games.games.filter((g) => `${g.title} ${g.provider} ${g.category}`.toLowerCase().includes(q));
+  return games.games.filter((g) =>
+    `${g.title} ${g.provider} ${g.category} ${categoryLabel(g.category)}`.toLowerCase().includes(q)
+  );
 });
 
 function searchProvider(name: string) {
@@ -101,38 +104,27 @@ function searchProvider(name: string) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+// Copy lives in the i18n dictionaries under promos.<id>.
 const promos: {
-  tag: string;
-  title: string;
-  text: string;
-  cta: string;
+  id: "welcome" | "refer" | "instant";
   emblem: Emblem;
   palette: Palette;
   action: () => void;
 }[] = [
   {
-    tag: "Welcome",
-    title: "Your demo lobby is live",
-    text: "Browse every slot and table with a simulated balance.",
-    cta: "Browse slots",
+    id: "welcome",
     emblem: "star",
     palette: PALETTES.violet,
     action: () => setTab("slots"),
   },
   {
-    tag: "Refer & Earn",
-    title: "Invite friends, stack demo bonuses",
-    text: "Share your link — you both get fake credits.",
-    cta: "Get your link",
+    id: "refer",
     emblem: "gift",
     palette: PALETTES.emerald,
     action: () => router.push({ name: "referrals" }),
   },
   {
-    tag: "Instant",
-    title: "One-click crypto top-ups",
-    text: "Simulated BTC, ETH & USDT deposits for walkthroughs.",
-    cta: "Open wallet",
+    id: "instant",
     emblem: "coin",
     palette: PALETTES.gold,
     action: () => ui.openWallet(),
@@ -149,7 +141,7 @@ const promos: {
     >
       <article
         v-for="promo in promos"
-        :key="promo.title"
+        :key="promo.id"
         class="relative flex h-[190px] min-w-[86%] snap-start flex-col justify-between overflow-hidden rounded-xl p-5 shadow-card sm:min-w-[55%] lg:min-w-0"
         :style="{ background: `linear-gradient(135deg, ${promo.palette[1]} 0%, ${promo.palette[2]} 85%)` }"
       >
@@ -163,17 +155,17 @@ const promos: {
 
         <div class="relative max-w-[62%]">
           <span class="inline-block rounded bg-white px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-ink-900">
-            {{ promo.tag }}
+            {{ t(`promos.${promo.id}.tag`) }}
           </span>
-          <h3 class="mt-3 text-lg font-extrabold leading-tight [text-shadow:0_2px_8px_rgba(0,0,0,.25)]">{{ promo.title }}</h3>
-          <p class="mt-1 text-[13px] leading-snug text-white/80">{{ promo.text }}</p>
+          <h3 class="mt-3 text-lg font-extrabold leading-tight [text-shadow:0_2px_8px_rgba(0,0,0,.25)]">{{ t(`promos.${promo.id}.title`) }}</h3>
+          <p class="mt-1 text-[13px] leading-snug text-white/80">{{ t(`promos.${promo.id}.text`) }}</p>
         </div>
         <button
           type="button"
           class="relative w-fit rounded-md border-2 border-white/80 px-4 py-1.5 text-sm font-bold transition hover:bg-white hover:text-ink-900"
           @click="promo.action"
         >
-          {{ promo.cta }}
+          {{ t(`promos.${promo.id}.cta`) }}
         </button>
       </article>
     </section>
@@ -185,14 +177,14 @@ const promos: {
         <input
           v-model="query"
           type="search"
-          placeholder="Search your game"
+          :placeholder="t('lobby.searchPlaceholder')"
           class="h-12 w-full rounded-full border-2 border-ink-600 bg-ink-900 pl-11 pr-11 text-sm font-semibold text-white placeholder:font-normal placeholder:text-ink-400 transition hover:border-ink-500 focus:border-ink-400 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
         />
         <button
           v-if="query"
           type="button"
           class="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-ink-300 hover:bg-ink-700 hover:text-white"
-          aria-label="Clear search"
+          :aria-label="t('common.clearSearch')"
           @click="query = ''"
         >
           <Icon name="x" :size="16" />
@@ -202,15 +194,15 @@ const promos: {
       <div class="no-scrollbar -mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
         <div class="inline-flex gap-1 rounded-full bg-ink-900 p-1.5">
           <button
-            v-for="t in tabs"
-            :key="t.slug"
+            v-for="item in tabs"
+            :key="item.slug"
             type="button"
             class="flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition"
-            :class="tab === t.slug && !results ? 'bg-ink-600 text-white' : 'text-white hover:bg-ink-700'"
-            @click="setTab(t.slug)"
+            :class="tab === item.slug && !results ? 'bg-ink-600 text-white' : 'text-white hover:bg-ink-700'"
+            @click="setTab(item.slug)"
           >
-            <Icon :name="t.icon" :size="16" :class="tab === t.slug && !results ? 'text-white' : 'text-ink-300'" />
-            {{ t.label }}
+            <Icon :name="item.icon" :size="16" :class="tab === item.slug && !results ? 'text-white' : 'text-ink-300'" />
+            {{ item.label }}
           </button>
         </div>
       </div>
@@ -219,7 +211,7 @@ const promos: {
     <!-- Search results -->
     <section v-if="results">
       <h2 class="mb-4 text-base font-bold sm:text-lg">
-        <span class="text-ink-300">Results for</span> &ldquo;{{ query }}&rdquo;
+        <span class="text-ink-300">{{ t("lobby.resultsFor") }}</span> &ldquo;{{ query }}&rdquo;
         <span class="ml-1 text-sm font-semibold text-ink-400">({{ results.length }})</span>
       </h2>
       <div v-if="results.length" class="grid grid-cols-3 gap-x-2.5 gap-y-4 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 xl:grid-cols-6">
@@ -227,8 +219,8 @@ const promos: {
       </div>
       <div v-else class="panel flex flex-col items-center gap-2 px-6 py-14 text-center">
         <Icon name="search" :size="28" class="text-ink-400" />
-        <p class="font-bold">No games found</p>
-        <p class="text-sm text-ink-300">Try a different title or provider.</p>
+        <p class="font-bold">{{ t("lobby.noGames") }}</p>
+        <p class="text-sm text-ink-300">{{ t("lobby.noGamesHint") }}</p>
       </div>
     </section>
 
@@ -236,18 +228,18 @@ const promos: {
     <template v-else-if="tab === 'lobby'">
       <GameRow
         v-if="recentGames.length"
-        title="Continue playing"
+        :title="t('lobby.continuePlaying')"
         icon="history"
         :games="recentGames"
         @view-all="setTab('recent')"
       />
       <template v-if="!games.loaded">
-        <GameRow v-for="n in 3" :key="n" title="Loading…" icon="grid" :games="[]" loading />
+        <GameRow v-for="n in 3" :key="n" :title="t('common.loading')" icon="grid" :games="[]" loading />
       </template>
       <GameRow
         v-for="cat in categories"
         :key="cat.slug"
-        :title="cat.name"
+        :title="categoryLabel(cat.name)"
         :icon="cat.icon"
         :games="games.byCategory[cat.name] ?? []"
         @view-all="setTab(cat.slug)"
@@ -255,7 +247,7 @@ const promos: {
 
       <section v-if="games.providers.length">
         <h2 class="mb-3 flex items-center gap-2 text-base font-bold sm:text-lg">
-          <Icon name="layers" :size="18" class="text-ink-300" /> Providers
+          <Icon name="layers" :size="18" class="text-ink-300" /> {{ t("lobby.providers") }}
         </h2>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
           <button
@@ -268,7 +260,7 @@ const promos: {
             <span class="text-lg font-black uppercase italic tracking-tight text-ink-300 transition group-hover:text-white">
               {{ p.name }}
             </span>
-            <span class="mt-1 text-xs font-semibold text-ink-400">{{ p.count }} games</span>
+            <span class="mt-1 text-xs font-semibold text-ink-400">{{ tc("lobby.gamesCount", p.count) }}</span>
           </button>
         </div>
       </section>
@@ -284,17 +276,17 @@ const promos: {
         </h2>
         <div v-if="isCategoryTab && games.loaded" class="flex w-full gap-2 sm:w-auto">
           <label class="relative flex-1 sm:flex-none">
-            <select v-model="providerFilter" aria-label="Filter by provider" class="h-10 w-full appearance-none rounded-md border-2 border-ink-600 bg-ink-900 pl-3 pr-9 text-sm font-semibold text-white transition hover:border-ink-500 focus:border-ink-400 focus:outline-none sm:w-48">
-              <option value="">All providers</option>
+            <select v-model="providerFilter" :aria-label="t('lobby.filterProvider')" class="h-10 w-full appearance-none rounded-md border-2 border-ink-600 bg-ink-900 pl-3 pr-9 text-sm font-semibold text-white transition hover:border-ink-500 focus:border-ink-400 focus:outline-none sm:w-48">
+              <option value="">{{ t("lobby.allProviders") }}</option>
               <option v-for="p in tabProviders" :key="p" :value="p">{{ p }}</option>
             </select>
             <Icon name="chevron-down" :size="16" class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-300" />
           </label>
           <label class="relative flex-1 sm:flex-none">
-            <select v-model="sortBy" aria-label="Sort games" class="h-10 w-full appearance-none rounded-md border-2 border-ink-600 bg-ink-900 pl-3 pr-9 text-sm font-semibold text-white transition hover:border-ink-500 focus:border-ink-400 focus:outline-none sm:w-40">
-              <option value="az">Sort: A–Z</option>
-              <option value="za">Sort: Z–A</option>
-              <option value="provider">Sort: Provider</option>
+            <select v-model="sortBy" :aria-label="t('lobby.sortGames')" class="h-10 w-full appearance-none rounded-md border-2 border-ink-600 bg-ink-900 pl-3 pr-9 text-sm font-semibold text-white transition hover:border-ink-500 focus:border-ink-400 focus:outline-none sm:w-40">
+              <option value="az">{{ t("lobby.sortAz") }}</option>
+              <option value="za">{{ t("lobby.sortZa") }}</option>
+              <option value="provider">{{ t("lobby.sortProvider") }}</option>
             </select>
             <Icon name="chevron-down" :size="16" class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-300" />
           </label>
@@ -309,15 +301,15 @@ const promos: {
       </div>
       <div v-else class="panel flex flex-col items-center gap-2 px-6 py-14 text-center">
         <Icon :name="tab === 'favourites' ? 'heart' : 'history'" :size="28" class="text-ink-400" />
-        <p class="font-bold">{{ tab === "favourites" ? "No favourites yet" : "Nothing played yet" }}</p>
+        <p class="font-bold">{{ tab === "favourites" ? t("lobby.noFavourites") : t("lobby.noRecent") }}</p>
         <p class="max-w-xs text-sm text-ink-300">
           {{
             tab === "favourites"
-              ? "Tap the heart on any game to pin it here."
-              : "Games you open will show up here for quick access."
+              ? t("lobby.noFavouritesHint")
+              : t("lobby.noRecentHint")
           }}
         </p>
-        <button type="button" class="btn-blue mt-3" @click="setTab('lobby')">Explore the lobby</button>
+        <button type="button" class="btn-blue mt-3" @click="setTab('lobby')">{{ t("lobby.explore") }}</button>
       </div>
     </section>
   </div>

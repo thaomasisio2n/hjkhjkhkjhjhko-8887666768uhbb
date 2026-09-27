@@ -3,7 +3,8 @@ import { computed } from "vue";
 import { RouterLink, useRoute, type RouteLocationRaw } from "vue-router";
 import { useGamesStore } from "../../stores/games";
 import { useUiStore } from "../../stores/ui";
-import { KNOWN_CATEGORIES, sortCategories } from "../../lib/categories";
+import { KNOWN_CATEGORIES, categoryLabel, sortCategories } from "../../lib/categories";
+import { t } from "../../i18n";
 import type { IconName } from "../../lib/icons";
 import Icon from "../Icon.vue";
 
@@ -35,14 +36,14 @@ const groups = computed<NavItem[][]>(() => {
 
   return [
     [
-      tabItem("Favourites", "heart", "favourites", ui.favourites.length || undefined),
-      tabItem("Recent", "history", "recent"),
+      tabItem(t("nav.favourites"), "heart", "favourites", ui.favourites.length || undefined),
+      tabItem(t("nav.recent"), "history", "recent"),
     ],
-    [tabItem("Lobby", "lobby", "lobby"), ...categories.map((c) => tabItem(c.name, c.icon, c.slug))],
+    [tabItem(t("nav.lobby"), "lobby", "lobby"), ...categories.map((c) => tabItem(categoryLabel(c.name), c.icon, c.slug))],
     [
-      { label: "Wallet", icon: "wallet", to: { name: "wallet" }, active: route.name === "wallet" },
-      { label: "Refer & Earn", icon: "users", to: { name: "referrals" }, active: route.name === "referrals" },
-      { label: "Settings", icon: "settings", to: { name: "settings" }, active: route.name === "settings" },
+      { label: t("nav.wallet"), icon: "wallet", to: { name: "wallet" }, active: route.name === "wallet" },
+      { label: t("nav.refer"), icon: "users", to: { name: "referrals" }, active: route.name === "referrals" },
+      { label: t("nav.settings"), icon: "settings", to: { name: "settings" }, active: route.name === "settings" },
     ],
   ];
 });

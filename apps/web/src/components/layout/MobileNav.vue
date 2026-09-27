@@ -3,24 +3,27 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useUiStore } from "../../stores/ui";
 import type { IconName } from "../../lib/icons";
+import { t } from "../../i18n";
 import Icon from "../Icon.vue";
 
 const ui = useUiStore();
 const route = useRoute();
 const router = useRouter();
 
-const items = computed<{ label: string; icon: IconName; active: boolean; action: () => void }[]>(() => [
-  { label: "Browse", icon: "menu", active: ui.mobileNavOpen, action: () => (ui.mobileNavOpen = !ui.mobileNavOpen) },
+const items = computed<{ id: string; label: string; icon: IconName; active: boolean; action: () => void }[]>(() => [
+  { id: "browse", label: t("nav.browse"), icon: "menu", active: ui.mobileNavOpen, action: () => (ui.mobileNavOpen = !ui.mobileNavOpen) },
   {
-    label: "Casino",
+    id: "casino",
+    label: t("nav.casino"),
     icon: "cherry",
     active: route.name === "lobby" && !ui.mobileNavOpen && !ui.searchOpen,
     action: () => router.push({ name: "lobby" }),
   },
-  { label: "Search", icon: "search", active: ui.searchOpen, action: () => ui.openSearch() },
-  { label: "Wallet", icon: "wallet", active: ui.walletOpen, action: () => ui.openWallet() },
+  { id: "search", label: t("nav.search"), icon: "search", active: ui.searchOpen, action: () => ui.openSearch() },
+  { id: "wallet", label: t("nav.wallet"), icon: "wallet", active: ui.walletOpen, action: () => ui.openWallet() },
   {
-    label: "Refer",
+    id: "refer",
+    label: t("nav.referShort"),
     icon: "users",
     active: route.name === "referrals" && !ui.mobileNavOpen && !ui.searchOpen,
     action: () => router.push({ name: "referrals" }),
@@ -32,7 +35,7 @@ const items = computed<{ label: string; icon: IconName; active: boolean; action:
   <nav class="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-5 border-t border-ink-700 bg-ink-900 pb-[env(safe-area-inset-bottom)] lg:hidden">
     <button
       v-for="item in items"
-      :key="item.label"
+      :key="item.id"
       type="button"
       class="flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition"
       :class="item.active ? 'text-white' : 'text-ink-300 hover:text-white'"

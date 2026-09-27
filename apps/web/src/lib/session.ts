@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 // Start of the current signed-in session, per browser tab (survives reloads,
 // cleared on logout). Used by the reality-check reminder and Settings.
 const KEY = "ns_session_start";
@@ -24,7 +26,7 @@ export function clearSession() {
 
 export function formatDuration(ms: number) {
   const minutes = Math.max(0, Math.floor(ms / 60_000));
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return t("duration.minutes", { m: minutes });
   const hours = Math.floor(minutes / 60);
-  return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
+  return minutes % 60 ? t("duration.hoursMinutes", { h: hours, m: minutes % 60 }) : t("duration.hours", { h: hours });
 }

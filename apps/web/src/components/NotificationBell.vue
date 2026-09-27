@@ -7,6 +7,7 @@ import { useWalletStore } from "../stores/wallet";
 import { formatUsd, timeAgo } from "../lib/format";
 import { invitedName, notificationCopy, txMeta } from "../lib/transactions";
 import Icon from "./Icon.vue";
+import { t } from "../i18n";
 
 // Polling keeps the bell (and balance) live, e.g. when a friend signs up with
 // your link in another window while you're recording.
@@ -23,7 +24,7 @@ let timer: ReturnType<typeof setInterval> | undefined;
 
 const items = computed(() => wallet.transactions.slice(0, 8));
 const isUnread = (createdAt: string) => new Date(createdAt).getTime() > ui.notificationsSeenAt;
-const unread = computed(() => wallet.transactions.filter((t) => isUnread(t.createdAt)).length);
+const unread = computed(() => wallet.transactions.filter((tx) => isUnread(tx.createdAt)).length);
 
 watch(
   () => wallet.transactions,
@@ -32,7 +33,8 @@ watch(
       if (known.has(tx.id)) continue;
       known.add(tx.id);
       if (primed && tx.type === "REFERRAL_BONUS") {
-        toast.push(`${invitedName(tx.note) ?? "A friend"} joined with your link (+${formatUsd(tx.amountCents)})`, "success", "users");
+        const name = invitedName(tx.note) ?? t("notifications.aFriend");
+        toast.push(t("toasts.referralJoined", { name, amount: formatUsd(tx.amountCents) }), "success", "users");
       }
     }
     if (list.length) primed = true;
@@ -72,7 +74,7 @@ onBeforeUnmount(() => {
     <button
       type="button"
       class="relative flex h-10 w-10 items-center justify-center rounded-md text-ink-300 transition hover:bg-ink-700 hover:text-white"
-      :aria-label="unread ? `Notifications (${unread} unread)` : 'Notifications'"
+      :aria-label="unread ? t('notifications.unread', { count: unread }) : t('notifications.title')"
       aria-haspopup="dialog"
       :aria-expanded="open"
       @click="toggle"
@@ -90,22 +92,22 @@ onBeforeUnmount(() => {
       <div class="fixed inset-0 z-40" @click="close" />
       <div
         role="dialog"
-        aria-label="Notifications"
+:aria-label="t('notifications.title')"
         class="absolute inset-x-3 top-[calc(100%+6px)] z-50 animate-pop-in overflow-hidden rounded-lg bg-ink-700 shadow-lift sm:inset-x-auto sm:right-0 sm:top-[calc(100%+10px)] sm:w-96"
       >
         <div class="flex items-center justify-between border-b border-ink-600 px-4 py-3">
           <p class="flex items-center gap-2 font-bold">
-            <Icon name="bell" :size="16" class="text-ink-300" /> Notifications
+            <Icon name="bell" :size="16" class="text-ink-300" /> {{ t("notifications.title") }}
           </p>
           <button v-if="unread" type="button" class="text-xs font-semibold text-ink-300 hover:text-white" @click="ui.markNotificationsSeen()">
-            Mark all as read
+            {{ t("notifications.markRead") }}
           </button>
         </div>
 
         <div class="max-h-[60vh] overflow-y-auto">
           <div v-if="items.length === 0" class="flex flex-col items-center gap-2 px-6 py-10 text-center">
             <Icon name="bell" :size="24" class="text-ink-400" />
-            <p class="text-sm text-ink-300">You're all caught up.</p>
+            <p class="text-sm text-ink-300">{{ t("notifications.empty") }}</p>
           </div>
           <div
             v-for="tx in items"
@@ -131,7 +133,7 @@ onBeforeUnmount(() => {
         </div>
 
         <RouterLink :to="{ name: 'wallet' }" class="block border-t border-ink-600 px-4 py-3 text-center text-sm font-semibold text-ink-300 transition hover:bg-ink-600 hover:text-white" @click="close">
-          View all activity
+          {{ t("notifications.viewAll") }}
         </RouterLink>
       </div>
     </template>
