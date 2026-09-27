@@ -1,19 +1,38 @@
 <script setup lang="ts">
-import { useAuthStore } from "./stores/auth";
-import Navbar from "./components/Navbar.vue";
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+import { useUiStore } from "./stores/ui";
+import DemoBanner from "./components/layout/DemoBanner.vue";
+import MobileNav from "./components/layout/MobileNav.vue";
+import Sidebar from "./components/layout/Sidebar.vue";
+import SiteFooter from "./components/layout/SiteFooter.vue";
+import Topbar from "./components/layout/Topbar.vue";
+import WalletModal from "./components/WalletModal.vue";
 
-const auth = useAuthStore();
+const route = useRoute();
+const ui = useUiStore();
+
+// Auth screens render full-bleed; everything else gets the casino shell.
+const bare = computed(() => !route.meta.requiresAuth);
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
-    <div class="bg-amber-500/90 text-surface-950 text-xs sm:text-sm font-medium text-center py-1.5 px-4">
-      DEMO EDUKACYJNE — brak prawdziwego hazardu, brak realnych p&#322;atno&#347;ci. Wszystkie
-      &#347;rodki i gry s&#261; symulowane wy&#322;&#261;cznie do cel&oacute;w pokazowych.
+  <div v-if="bare" class="flex min-h-screen flex-col bg-ink-900">
+    <DemoBanner />
+    <router-view />
+  </div>
+
+  <div v-else class="flex min-h-screen">
+    <Sidebar />
+    <div class="flex min-w-0 flex-1 flex-col">
+      <DemoBanner />
+      <Topbar />
+      <main class="flex-1">
+        <router-view />
+      </main>
+      <SiteFooter class="pb-16 lg:pb-0" />
     </div>
-    <Navbar v-if="auth.isAuthenticated" />
-    <main class="flex-1">
-      <router-view />
-    </main>
+    <MobileNav />
+    <WalletModal v-if="ui.walletOpen" />
   </div>
 </template>

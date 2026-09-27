@@ -1,66 +1,95 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { computed, onMounted } from "vue";
 import { useWalletStore } from "../stores/wallet";
-import BalanceBadge from "../components/BalanceBadge.vue";
-import TopupModal from "../components/TopupModal.vue";
+import { useUiStore } from "../stores/ui";
+import { formatDate, formatUsd } from "../lib/format";
+import { txMeta } from "../lib/transactions";
+import CoinIcon from "../components/CoinIcon.vue";
+import Icon from "../components/Icon.vue";
 
 const wallet = useWalletStore();
-const showModal = ref(false);
+const ui = useUiStore();
 
 onMounted(() => {
   wallet.fetchBalance();
   wallet.fetchTransactions();
 });
 
-function typeLabel(type: string) {
-  return {
-    TOPUP: "Top-up",
-    REFERRAL_BONUS: "Referral bonus",
-    WELCOME_BONUS: "Welcome bonus",
-    ADJUSTMENT: "Adjustment",
-  }[type] ?? type;
-}
+const deposited = computed(() =>
+  wallet.transactions.filter((t) => t.type === "TOPUP").reduce((sum, t) => sum + t.amountCents, 0)
+);
+const bonuses = computed(() =>
+  wallet.transactions.filter((t) => t.type !== "TOPUP").reduce((sum, t) => sum + t.amountCents, 0)
+);
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-6">Wallet</h1>
-
-    <div class="bg-surface-900 border border-surface-700 rounded-2xl p-6 flex items-center justify-between mb-8">
+  <div class="page space-y-6 py-6 sm:py-8">
+    <header class="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <p class="text-xs text-slate-400 uppercase tracking-wide">Balance</p>
-        <div class="mt-2">
-          <BalanceBadge :cents="wallet.balanceCents" />
-        </div>
+        <h1 class="flex items-center gap-2 text-2xl font-extrabold tracking-tight">
+          <Icon name="wallet" :size="22" class="text-ink-300" /> Wallet
+        </h1>
+        <p class="mt-1 text-sm text-ink-300">Your demo funds and activity. Nothing here has real-world value.</p>
       </div>
-      <button
-        class="bg-brand-500 hover:bg-brand-400 transition text-white font-semibold text-sm px-4 py-2.5 rounded-full"
-        @click="showModal = true"
-      >
-        + Top up
+      <button type="button" class="btn-accent" @click="ui.openWallet()">
+        <Icon name="plus" :size="16" :stroke="2.5" /> Deposit
       </button>
+    </header>
+
+    <div class="grid gap-4 md:grid-cols-3">
+      <div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue to-[#0a3f86] p-6 shadow-card">
+        <p class="text-xs font-semibold uppercase tracking-wide text-white/70">Total balance</p>
+        <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ formatUsd(wallet.balanceCents) }}</p>
+        <p class="mt-1 text-xs font-semibold text-white/60">USD &middot; demo funds</p>
+        <CoinIcon coin="usd" :size="120" class="absolute -bottom-8 -right-6 opacity-20" />
+      </div>
+      <div class="panel p-6">
+        <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-400">
+          <Icon name="wallet" :size="14" /> Demo deposits
+        </p>
+        <p class="mt-2 text-2xl font-extrabold tabular-nums">{{ formatUsd(deposited) }}</p>
+        <p class="mt-1 text-xs text-ink-400">Simulated crypto top-ups</p>
+      </div>
+      <div class="panel p-6">
+        <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-400">
+          <Icon name="gift" :size="14" /> Bonuses
+        </p>
+        <p class="mt-2 text-2xl font-extrabold tabular-nums">{{ formatUsd(bonuses) }}</p>
+        <p class="mt-1 text-xs text-ink-400">Welcome + referral credits</p>
+      </div>
     </div>
 
-    <h2 class="text-lg font-semibold mb-3">Transaction history</h2>
-    <div class="bg-surface-900 border border-surface-700 rounded-xl divide-y divide-surface-800">
-      <div v-if="wallet.transactions.length === 0" class="p-4 text-sm text-slate-400">
-        No transactions yet.
-      </div>
-      <div
-        v-for="tx in wallet.transactions"
-        :key="tx.id"
-        class="p-4 flex items-center justify-between text-sm"
-      >
-        <div>
-          <p class="font-medium">{{ typeLabel(tx.type) }}</p>
-          <p class="text-xs text-slate-400">{{ tx.note }}</p>
+    <section>
+      <h2 class="mb-3 text-lg font-bold">Transactions</h2>
+      <div class="overflow-hidden rounded-lg shadow-card">
+        <div class="hidden grid-cols-[1.2fr_2fr_1.2fr_1fr] gap-4 bg-ink-900 px-5 py-3 text-xs font-bold uppercase tracking-wide text-ink-400 sm:grid">
+          <span>Type</span><span>Details</span><span>Date</span><span class="text-right">Amount</span>
         </div>
-        <span class="font-semibold text-green-400">
-          +{{ (tx.amountCents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" }) }}
-        </span>
+        <div v-if="wallet.transactions.length === 0" class="bg-ink-700 px-5 py-10 text-center text-sm text-ink-300">
+          No transactions yet.
+        </div>
+        <div
+          v-for="(tx, i) in wallet.transactions"
+          :key="tx.id"
+          class="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-0.5 px-4 py-3 text-sm sm:grid-cols-[1.2fr_2fr_1.2fr_1fr] sm:gap-4 sm:px-5"
+          :class="i % 2 ? 'bg-ink-800' : 'bg-ink-700'"
+        >
+          <div class="row-span-2 flex items-center gap-3 sm:row-span-1">
+            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" :class="txMeta(tx.type).tone">
+              <Icon :name="txMeta(tx.type).icon" :size="15" />
+            </span>
+            <span class="hidden font-semibold sm:inline">{{ txMeta(tx.type).label }}</span>
+          </div>
+          <div class="min-w-0">
+            <p class="font-semibold sm:hidden">{{ txMeta(tx.type).label }}</p>
+            <p class="truncate text-xs text-ink-300 sm:text-sm">{{ tx.note ?? "—" }}</p>
+          </div>
+          <span class="hidden text-ink-300 sm:block">{{ formatDate(tx.createdAt) }}</span>
+          <span class="row-span-2 text-right font-bold tabular-nums text-accent sm:row-span-1">+{{ formatUsd(tx.amountCents) }}</span>
+          <span class="text-xs text-ink-400 sm:hidden">{{ formatDate(tx.createdAt) }}</span>
+        </div>
       </div>
-    </div>
-
-    <TopupModal v-if="showModal" @close="showModal = false" />
+    </section>
   </div>
 </template>

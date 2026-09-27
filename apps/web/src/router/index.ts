@@ -3,6 +3,7 @@ import { useAuthStore } from "../stores/auth";
 
 const router = createRouter({
   history: createWebHistory(),
+  scrollBehavior: (to, from) => (to.path === from.path ? undefined : { top: 0 }),
   routes: [
     { path: "/", redirect: "/lobby" },
     { path: "/login", name: "login", component: () => import("../views/LoginView.vue"), meta: { guestOnly: true } },

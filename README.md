@@ -11,17 +11,25 @@
 > or compliance work that real-money gambling requires in every
 > jurisdiction.
 
+![NovaSpin demo lobby](docs/lobby.png)
+
 ## What's here
 
 A monorepo mimicking the tech shape of typical iframe-based casino
 aggregator launchers (a lobby site that loads third-party game clients in
 an iframe, e.g. `?gameid=...&mode=demo&token=...`):
 
-- `apps/web` — Vue 3 + Vite + Pinia + Tailwind CSS. Login/register, game
-  lobby with placeholder game tiles (grouped by fake "provider"), a wallet
-  view, a fake "crypto pay" top-up modal that always instantly credits the
-  balance (no blockchain, no processor — it's a demo button), and a
-  referral dashboard (code, invited users, earned bonus).
+- `apps/web` — Vue 3 + Vite + Pinia + Tailwind CSS, styled like a modern
+  crypto-casino lobby (dark navy theme, collapsible sidebar, balance +
+  wallet button in the top bar, mobile bottom nav). Login/register, a game
+  lobby with promo banners, search, category tabs and scrollable game rows,
+  favourites/recently played (stored in the browser), a game page with the
+  iframe slot left as a placeholder, a wallet page + a fake "crypto pay"
+  deposit modal that always instantly credits the balance (no blockchain,
+  no processor — it's a demo button), and a referral dashboard (code,
+  invited users, earned bonus). Game cover art is generated procedurally
+  from each title (SVG emblem + palette), so no third-party artwork ships
+  with the repo.
 - `apps/api` — Fastify + Prisma + SQLite. JWT auth, wallet/balance ledger,
   referral codes + rewards, and a `/games` catalog endpoint serving
   placeholder game metadata (title, provider, thumbnail placeholder, and a
@@ -37,7 +45,7 @@ npm start
 ```
 
 That installs dependencies for both apps, creates `apps/api/.env`, sets up
-the local SQLite database (migrate + seed 20 placeholder games), starts the
+the local SQLite database (migrate + seed 48 placeholder games), starts the
 API on `http://localhost:8787` and the web app on `http://localhost:5173`,
 and opens the web app in your browser. Ctrl+C stops both servers.
 

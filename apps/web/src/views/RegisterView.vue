@@ -2,6 +2,8 @@
 import { ref, onMounted } from "vue";
 import { useRouter, useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import AuthShell from "../components/AuthShell.vue";
+import Icon from "../components/Icon.vue";
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -11,12 +13,16 @@ const email = ref("");
 const password = ref("");
 const displayName = ref("");
 const referralCode = ref("");
+const showReferral = ref(false);
 const error = ref("");
 const loading = ref(false);
 
 onMounted(() => {
   const ref_ = route.query.ref;
-  if (typeof ref_ === "string") referralCode.value = ref_;
+  if (typeof ref_ === "string") {
+    referralCode.value = ref_;
+    showReferral.value = true;
+  }
 });
 
 async function submit() {
@@ -31,7 +37,8 @@ async function submit() {
     });
     router.push({ name: "lobby" });
   } catch (e: any) {
-    error.value = e?.response?.data?.error ?? "Registration failed";
+    const err = e?.response?.data?.error;
+    error.value = typeof err === "string" ? err : "Registration failed — check the fields and try again.";
   } finally {
     loading.value = false;
   }
@@ -39,66 +46,47 @@ async function submit() {
 </script>
 
 <template>
-  <div class="min-h-[calc(100vh-2rem)] flex items-center justify-center px-4 py-8">
-    <div class="w-full max-w-sm bg-surface-900 border border-surface-700 rounded-2xl p-8">
-      <div class="text-center mb-6">
-        <div class="text-2xl font-bold"><span class="text-brand-400">Nova</span><span class="text-gold">Spin</span></div>
-        <p class="text-slate-400 text-sm mt-1">Create a demo account. Fake balance included &#128075;</p>
+  <AuthShell title="Create an account" subtitle="Demo account with a simulated welcome balance.">
+    <form class="space-y-4" @submit.prevent="submit">
+      <div>
+        <label for="reg-name" class="field-label">Username</label>
+        <input id="reg-name" v-model="displayName" type="text" autocomplete="nickname" required class="field" />
+      </div>
+      <div>
+        <label for="reg-email" class="field-label">Email</label>
+        <input id="reg-email" v-model="email" type="email" autocomplete="email" required class="field" />
+      </div>
+      <div>
+        <label for="reg-password" class="field-label">Password</label>
+        <input id="reg-password" v-model="password" type="password" autocomplete="new-password" minlength="8" required class="field" />
+        <p class="mt-1.5 text-xs text-ink-400">At least 8 characters.</p>
       </div>
 
-      <form class="space-y-4" @submit.prevent="submit">
-        <div>
-          <label class="text-xs text-slate-400">Display name</label>
-          <input
-            v-model="displayName"
-            type="text"
-            required
-            class="mt-1 w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
-          />
-        </div>
-        <div>
-          <label class="text-xs text-slate-400">Email</label>
-          <input
-            v-model="email"
-            type="email"
-            required
-            class="mt-1 w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
-          />
-        </div>
-        <div>
-          <label class="text-xs text-slate-400">Password</label>
-          <input
-            v-model="password"
-            type="password"
-            minlength="8"
-            required
-            class="mt-1 w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
-          />
-        </div>
-        <div>
-          <label class="text-xs text-slate-400">Referral code (optional)</label>
-          <input
-            v-model="referralCode"
-            type="text"
-            class="mt-1 w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400 uppercase"
-          />
-        </div>
-
-        <p v-if="error" class="text-red-400 text-xs">{{ error }}</p>
-
-        <button
-          type="submit"
-          :disabled="loading"
-          class="w-full bg-brand-500 hover:bg-brand-400 transition text-white font-semibold text-sm rounded-lg py-2.5 disabled:opacity-50"
-        >
-          {{ loading ? "Creating account..." : "Create account" }}
+      <div>
+        <button type="button" class="flex items-center gap-1.5 text-sm font-semibold text-ink-300 hover:text-white" @click="showReferral = !showReferral">
+          Referral code (optional)
+          <Icon name="chevron-down" :size="14" class="transition" :class="{ 'rotate-180': showReferral }" />
         </button>
-      </form>
+        <input
+          v-if="showReferral"
+          v-model="referralCode"
+          type="text"
+          aria-label="Referral code"
+          placeholder="e.g. DEMO0001"
+          class="field mt-2 font-mono uppercase tracking-wider"
+        />
+      </div>
 
-      <p class="text-center text-sm text-slate-400 mt-6">
-        Already have an account?
-        <RouterLink to="/login" class="text-brand-400 hover:text-brand-300">Sign in</RouterLink>
-      </p>
-    </div>
-  </div>
+      <p v-if="error" class="rounded-md bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300">{{ error }}</p>
+
+      <button type="submit" :disabled="loading" class="btn-accent h-12 w-full text-base">
+        {{ loading ? "Creating account…" : "Create account" }}
+      </button>
+    </form>
+
+    <p class="mt-6 text-center text-sm text-ink-300">
+      Already have an account?
+      <RouterLink to="/login" class="font-bold text-white hover:underline">Sign in</RouterLink>
+    </p>
+  </AuthShell>
 </template>

@@ -12,3 +12,16 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// A stale token (e.g. after the demo database was reset) sends the user back
+// to the login screen instead of leaving the UI half-broken.
+api.interceptors.response.use(undefined, (error) => {
+  if (error?.response?.status === 401) {
+    const auth = useAuthStore();
+    if (auth.token) {
+      auth.logout();
+      window.location.assign("/login");
+    }
+  }
+  return Promise.reject(error);
+});

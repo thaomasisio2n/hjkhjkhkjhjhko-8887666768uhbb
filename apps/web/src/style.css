@@ -2,10 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #app {
-  height: 100%;
+@layer base {
+  html,
+  body,
+  #app {
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-ink-800 font-sans text-white antialiased;
+    font-feature-settings: "tnum" 0;
+  }
+
+  ::selection {
+    @apply bg-blue text-white;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2f4553 transparent;
+  }
 }
 
-body {
-  @apply bg-surface-950 text-slate-100 antialiased;
+@layer components {
+  .page {
+    @apply mx-auto w-full max-w-[1200px] px-4 sm:px-6;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition
+      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+  }
+
+  .btn-accent {
+    @apply btn bg-accent text-accent-ink shadow-card hover:bg-accent-hover;
+  }
+
+  .btn-blue {
+    @apply btn bg-blue text-white shadow-card hover:bg-blue-hover;
+  }
+
+  .btn-ghost {
+    @apply btn bg-ink-600 text-white hover:bg-ink-500;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-semibold text-ink-300;
+  }
+
+  .field {
+    @apply w-full rounded-md border-2 border-ink-600 bg-ink-950 px-3 py-2.5 text-sm font-semibold text-white
+      placeholder:font-normal placeholder:text-ink-400 transition hover:border-ink-500 focus:border-ink-400
+      focus:outline-none;
+  }
+
+  .panel {
+    @apply rounded-lg bg-ink-700 shadow-card;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }

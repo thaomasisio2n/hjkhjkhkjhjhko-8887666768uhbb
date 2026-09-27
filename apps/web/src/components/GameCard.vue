@@ -1,26 +1,53 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import type { Game } from "../stores/games";
+import { useUiStore } from "../stores/ui";
+import GameCover from "./GameCover.vue";
+import Icon from "./Icon.vue";
 
 defineProps<{ game: Game }>();
+const ui = useUiStore();
 </script>
 
 <template>
-  <RouterLink
-    :to="{ name: 'play', params: { slug: game.slug } }"
-    class="group relative aspect-[3/4] rounded-xl overflow-hidden bg-surface-800 border border-surface-700 hover:border-brand-400 transition"
-  >
-    <div
-      class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-surface-700 to-surface-900 text-4xl"
+  <div class="group relative">
+    <RouterLink
+      :to="{ name: 'play', params: { slug: game.slug } }"
+      class="relative block aspect-[3/4] overflow-hidden rounded-lg bg-ink-700 shadow-card transition duration-300 will-change-transform group-hover:-translate-y-1.5 group-hover:shadow-lift"
+      :aria-label="`Open ${game.title}`"
     >
-      &#127920;
-    </div>
-    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
-      <span class="bg-brand-500 text-white text-xs font-bold px-4 py-1.5 rounded-full">Play demo</span>
-    </div>
-    <div class="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-      <p class="text-xs font-semibold truncate">{{ game.title }}</p>
-      <p class="text-[10px] text-slate-400 truncate">{{ game.provider }}</p>
-    </div>
-  </RouterLink>
+      <GameCover :title="game.title" :category="game.category" :provider="game.provider" />
+
+      <span
+        v-if="game.category === 'Live Casino'"
+        class="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur"
+      >
+        <span class="h-1.5 w-1.5 rounded-full bg-red-500" /> Live
+      </span>
+      <span
+        v-else-if="game.category === 'Jackpots'"
+        class="absolute left-2 top-2 rounded bg-gold px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-ink-950"
+      >
+        Jackpot
+      </span>
+
+      <span
+        class="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink-950/40 opacity-0 transition duration-200 group-hover:opacity-100"
+      >
+        <span class="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-ink shadow-lift">
+          <Icon name="play" :size="22" filled :stroke="0" />
+        </span>
+      </span>
+    </RouterLink>
+
+    <button
+      type="button"
+      class="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 backdrop-blur transition hover:bg-black/70 group-hover:-translate-y-1.5"
+      :class="ui.isFavourite(game.slug) ? 'text-rose-400 opacity-100' : 'text-white opacity-0 group-hover:opacity-100 focus:opacity-100'"
+      :aria-label="ui.isFavourite(game.slug) ? 'Remove from favourites' : 'Add to favourites'"
+      @click="ui.toggleFavourite(game.slug)"
+    >
+      <Icon name="heart" :size="14" :filled="ui.isFavourite(game.slug)" />
+    </button>
+  </div>
 </template>
