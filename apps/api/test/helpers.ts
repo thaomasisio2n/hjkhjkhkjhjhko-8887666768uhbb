@@ -3,6 +3,8 @@ import { buildApp, type AppOptions } from "../src/app.js";
 
 let counter = 0;
 
+export const TEST_PASSWORD = "spin-test-9431";
+
 export async function makeApp(opts: AppOptions = {}) {
   const app = await buildApp({ logger: false, ...opts });
   await app.ready();
@@ -20,7 +22,7 @@ export async function register(
 ) {
   const payload = {
     email: overrides.email ?? uniqueEmail(),
-    password: overrides.password ?? "password123",
+    password: overrides.password ?? TEST_PASSWORD,
     displayName: overrides.displayName ?? "Test Player",
     referralCode: overrides.referralCode,
   };

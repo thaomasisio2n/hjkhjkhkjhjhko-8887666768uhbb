@@ -167,12 +167,31 @@ async function main() {
   }
   console.log(invited ? `Seeded ${invited} demo referrals for the demo account.` : "Demo referrals already exist.");
 
-  // The shared demo login must always be usable for a recording: clear any
-  // break in play or two-factor setup someone left on it.
-  await prisma.user.update({
-    where: { id: demo.id },
-    data: { breakUntil: null, totpEnabled: false, totpSecret: null },
-  });
+  // These logins are published, so the API treats them as shared (settings
+  // that could lock others out are read-only). Every seed run also puts them
+  // back to their published state, in case anything changed before that
+  // protection existed: password, profile, 2FA, breaks, limits.
+  const sharedPasswordHash = await argon2.hash(DEMO_PASSWORD);
+  const sharedProfiles = [
+    { email: DEMO_EMAIL, displayName: "Demo Player", avatar: null },
+    ...DEMO_FRIENDS.map((f) => ({ email: f.email, displayName: f.displayName, avatar: f.avatar })),
+  ];
+  for (const profile of sharedProfiles) {
+    await prisma.user.update({
+      where: { email: profile.email },
+      data: {
+        shared: true,
+        passwordHash: sharedPasswordHash,
+        displayName: profile.displayName,
+        avatar: profile.avatar,
+        ghostMode: false,
+        depositLimitCents: null,
+        breakUntil: null,
+        totpEnabled: false,
+        totpSecret: null,
+      },
+    });
+  }
 
   await seedChat();
 }

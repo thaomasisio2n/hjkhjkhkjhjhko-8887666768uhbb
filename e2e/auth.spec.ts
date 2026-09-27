@@ -32,7 +32,7 @@ test("referral link: banner, code validation, and sign-up", async ({ page }) => 
 
   await page.getByLabel("Username").fill("Referred Viewer");
   await page.getByLabel("Email").fill(uniqueEmail("ref"));
-  await page.getByLabel("Password", { exact: true }).fill("password123");
+  await page.getByLabel("Password", { exact: true }).fill("spin-e2e-8842");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/lobby/);
   await expect(page.locator("header")).toContainText("$10,000.00");

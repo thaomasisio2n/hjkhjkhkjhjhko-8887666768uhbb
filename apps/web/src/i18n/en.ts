@@ -265,6 +265,8 @@ const en = {
     colBonus: "Your bonus",
   },
   auth: {
+    registrationClosedTitle: "Sign-ups are closed",
+    registrationClosedText: "New accounts are paused on this demo right now. You can still look around with the demo account.",
     signInTitle: "Sign in",
     signInSubtitle: "Welcome back to the demo lobby.",
     email: "Email",
@@ -302,6 +304,9 @@ const en = {
   },
   settings: {
     title: "Settings",
+    sharedTitle: "You're on the shared demo account",
+    sharedText: "Everyone who tries the demo signs in with it, so the account and security settings are read-only here. Create your own free account to try them.",
+    sharedCta: "Create my own account",
     memberSince: "Member since {date}",
     statBalance: "Balance",
     statFavourites: "Favourites",
@@ -408,6 +413,7 @@ const en = {
   },
   chat: {
     title: "Chat",
+    paused: "Chat is paused on this demo right now. You can still read the messages.",
     open: "Open chat",
     close: "Close chat",
     rooms: { en: "English", pl: "Polski" },

@@ -58,7 +58,17 @@ watch(
 );
 
 const invitedBy = computed(() => (lookup.value.state === "valid" ? lookup.value : null));
-const blocked = computed(() => lookup.value.state === "checking" || lookup.value.state === "invalid");
+
+// The operator can pause sign-ups (DISABLE_REGISTRATION); say so up front.
+const registrationOpen = ref(true);
+api
+  .get("/config")
+  .then(({ data }) => (registrationOpen.value = data.registrationOpen !== false))
+  .catch(() => {});
+
+const blocked = computed(
+  () => !registrationOpen.value || lookup.value.state === "checking" || lookup.value.state === "invalid"
+);
 
 async function submit() {
   if (blocked.value) return;
@@ -92,6 +102,14 @@ async function submit() {
       <p class="text-sm leading-snug">
         {{ t("auth.invitedBanner", { name: invitedBy.referrerName, amount: formatUsd(invitedBy.welcomeBonusCents) }) }}
       </p>
+    </div>
+
+    <div v-if="!registrationOpen" class="mb-5 flex items-start gap-3 rounded-lg border border-amber-400/25 bg-amber-400/10 p-3" role="status">
+      <Icon name="lock" :size="18" class="mt-0.5 shrink-0 text-amber-300" />
+      <div class="text-sm leading-snug">
+        <p class="font-bold">{{ t("auth.registrationClosedTitle") }}</p>
+        <p class="mt-0.5 text-ink-300">{{ t("auth.registrationClosedText") }}</p>
+      </div>
     </div>
 
     <form class="space-y-4" @submit.prevent="submit">

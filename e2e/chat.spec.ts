@@ -33,7 +33,7 @@ test("chat: another player's message shows up live", async ({ page, request }) =
   await expect(chat.getByTestId("chat-message").first()).toBeVisible();
 
   const other = await request.post(`${API}/auth/register`, {
-    data: { email: uniqueEmail("chat"), password: "password123", displayName: "Visitor" },
+    data: { email: uniqueEmail("chat"), password: "spin-e2e-8842", displayName: "Visitor" },
   });
   const { token } = await other.json();
   await request.post(`${API}/chat/en`, { data: { body: "hi from another tab" }, headers: { Authorization: `Bearer ${token}` } });

@@ -131,7 +131,10 @@ onBeforeUnmount(() => clearInterval(timer));
       </div>
     </div>
 
-    <form class="shrink-0 border-t border-ink-700 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" @submit.prevent="send">
+    <p v-if="!chat.open" class="shrink-0 border-t border-ink-700 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-sm text-ink-300" role="status">
+      <Icon name="lock" :size="15" class="mr-1 inline -translate-y-px text-amber-300" /> {{ t("chat.paused") }}
+    </p>
+    <form v-else class="shrink-0 border-t border-ink-700 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" @submit.prevent="send">
       <div class="flex gap-2">
         <input
           v-model="draft"

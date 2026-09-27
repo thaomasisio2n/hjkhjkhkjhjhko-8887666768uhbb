@@ -17,7 +17,7 @@ test("a friend signing up pops a live notification for the referrer", async ({ p
   await page.waitForTimeout(1_500);
 
   const res = await request.post(`${API}/auth/register`, {
-    data: { email: uniqueEmail("live"), password: "password123", displayName: "LiveViewer", referralCode: "DEMO0001" },
+    data: { email: uniqueEmail("live"), password: "spin-e2e-8842", displayName: "LiveViewer", referralCode: "DEMO0001" },
   });
   expect(res.ok()).toBeTruthy();
 

@@ -14,7 +14,9 @@ import UserAvatar from "../components/UserAvatar.vue";
 interface ReferralData {
   referralCode: string;
   referralLink: string;
+  // The latest 100; invitedCount is the full total.
   invited: { id: string; displayName: string; avatar: string | null; createdAt: string }[];
+  invitedCount?: number;
   totalEarnedCents: number;
   bonusPerReferralCents: number;
   welcomeBonusCents: number;
@@ -186,7 +188,7 @@ const steps = computed<{ icon: IconName; title: string; text: string }[]>(() => 
       <div class="grid gap-4 sm:grid-cols-3">
         <div class="panel p-5">
           <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-400"><Icon name="users" :size="14" /> {{ t("referrals.friendsInvited") }}</p>
-          <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ data.invited.length }}</p>
+          <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ data.invitedCount ?? data.invited.length }}</p>
         </div>
         <div class="panel p-5">
           <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-400"><Icon name="gift" :size="14" /> {{ t("referrals.earned") }}</p>

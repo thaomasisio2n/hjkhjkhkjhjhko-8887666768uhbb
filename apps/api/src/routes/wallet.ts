@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { MAX_BALANCE_CENTS } from "../config.js";
 
 const topupSchema = z.object({
   amountCents: z.number().int().positive().max(100_000_000),
@@ -36,7 +37,8 @@ export default async function walletRoutes(app: FastifyInstance) {
 
   app.get("/wallet", async (req) => walletState(req.user.sub));
 
-  app.put("/wallet/limits", async (req, reply) => {
+  // A limit on the shared demo account would block every other visitor's deposits.
+  app.put("/wallet/limits", { preHandler: [app.denyShared] }, async (req, reply) => {
     const parsed = limitsSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
@@ -59,7 +61,7 @@ export default async function walletRoutes(app: FastifyInstance) {
 
   // DEMO ONLY: there is no real crypto node or payment processor here.
   // "Paying" with any method just instantly credits the fake balance.
-  app.post("/wallet/topup", async (req, reply) => {
+  app.post("/wallet/topup", { config: { rateLimit: { max: app.limits.topup, timeWindow: "1 minute" } } }, async (req, reply) => {
     const parsed = topupSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
@@ -78,20 +80,28 @@ export default async function walletRoutes(app: FastifyInstance) {
       }
     }
 
-    const [, transaction] = await app.prisma.$transaction([
-      app.prisma.user.update({
-        where: { id: req.user.sub },
+    // Checked in the same UPDATE, so parallel requests can't overshoot the cap.
+    const transaction = await app.prisma.$transaction(async (tx) => {
+      const { count } = await tx.user.updateMany({
+        where: { id: req.user.sub, balanceCents: { lte: MAX_BALANCE_CENTS - amountCents } },
         data: { balanceCents: { increment: amountCents } },
-      }),
-      app.prisma.transaction.create({
+      });
+      if (!count) return null;
+      return tx.transaction.create({
         data: {
           userId: req.user.sub,
           type: "TOPUP",
           amountCents,
           note: `Demo top-up via ${method} (simulated, no real payment)`,
         },
-      }),
-    ]);
+      });
+    });
+    if (!transaction) {
+      return reply.code(400).send({
+        error: `Demo balances are capped at $${(MAX_BALANCE_CENTS / 100).toLocaleString("en-US")} — that's plenty of fake money.`,
+        code: "BALANCE_CAP",
+      });
+    }
 
     return reply.code(201).send({ ...(await walletState(req.user.sub)), transaction });
   });

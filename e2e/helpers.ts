@@ -15,13 +15,13 @@ export async function loginAsDemo(page: Page) {
 /** Registers through the API and signs the page in with the returned token. */
 export async function signInAsNewUser(page: Page, request: APIRequestContext, displayName = "E2E Player") {
   const email = uniqueEmail();
-  const res = await request.post(`${API}/auth/register`, { data: { email, password: "password123", displayName } });
+  const res = await request.post(`${API}/auth/register`, { data: { email, password: "spin-e2e-8842", displayName } });
   expect(res.ok()).toBeTruthy();
   const { token } = await res.json();
   // Set once (not via an init script) so a later logout really signs out.
   await page.goto("/login");
   await page.evaluate((t) => localStorage.setItem("demo_token", t), token);
-  return { email, password: "password123", token };
+  return { email, password: "spin-e2e-8842", token };
 }
 
 export async function signInThroughForm(page: Page, email: string, password: string) {

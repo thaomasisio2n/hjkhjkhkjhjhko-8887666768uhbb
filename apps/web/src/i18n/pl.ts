@@ -266,6 +266,8 @@ const pl: Messages = {
     colBonus: "Twój bonus",
   },
   auth: {
+    registrationClosedTitle: "Rejestracja jest wyłączona",
+    registrationClosedText: "Zakładanie nowych kont w tym demo jest teraz wstrzymane. Nadal możesz się rozejrzeć na koncie demo.",
     signInTitle: "Zaloguj się",
     signInSubtitle: "Witaj ponownie w demo lobby.",
     email: "Email",
@@ -302,6 +304,9 @@ const pl: Messages = {
     codeWrong: "Ten kod nie zadziałał — sprawdź aplikację i spróbuj ponownie.",
   },
   settings: {
+    sharedTitle: "Jesteś na wspólnym koncie demo",
+    sharedText: "Logują się na nie wszyscy, którzy testują demo, więc ustawienia konta i bezpieczeństwa są tu tylko do odczytu. Załóż własne darmowe konto, żeby je wypróbować.",
+    sharedCta: "Załóż własne konto",
     title: "Ustawienia",
     memberSince: "Członek od {date}",
     statBalance: "Saldo",
@@ -408,6 +413,7 @@ const pl: Messages = {
     signInToChat: "Zaloguj się, żeby korzystać z czatu",
   },
   chat: {
+    paused: "Czat w tym demo jest teraz wstrzymany. Nadal możesz czytać wiadomości.",
     title: "Czat",
     open: "Otwórz czat",
     close: "Zamknij czat",
@@ -492,6 +498,23 @@ const pl: Messages = {
     depositLimit: "Osiągnięto dzienny limit wpłat — w ciągu 24 godzin możesz wpłacić jeszcze {amount}.",
   },
   serverErrors: {
+    "This is the shared demo account, so this setting is locked. Create your own account to try it.":
+      "To wspólne konto demo, więc to ustawienie jest zablokowane. Załóż własne konto, żeby je wypróbować.",
+    "Sign-ups are closed on this demo right now.": "Rejestracja w tym demo jest teraz wyłączona.",
+    "Chat is paused on this demo right now.": "Czat w tym demo jest teraz wstrzymany.",
+    "This account has been suspended.": "To konto zostało zawieszone.",
+    "Too many failed sign-ins for this account — try again later.": "Zbyt wiele nieudanych logowań na to konto — spróbuj później.",
+    "Demo balances are capped at $10,000,000 — that's plenty of fake money.":
+      "Saldo demo ma limit 10 000 000 $ — to i tak mnóstwo udawanych pieniędzy.",
+    "That password is too common — pick something less guessable": "To hasło jest zbyt popularne — wybierz trudniejsze do odgadnięcia",
+    "Password must be at least 8 characters": "Hasło musi mieć co najmniej 8 znaków",
+    "Password must be at most 128 characters": "Hasło może mieć najwyżej 128 znaków",
+    "Username must be 2–40 characters": "Nazwa użytkownika musi mieć 2–40 znaków",
+    "Username contains characters that aren't allowed": "Nazwa użytkownika zawiera niedozwolone znaki",
+    "Usernames can't contain links": "Nazwa użytkownika nie może zawierać linków",
+    "That username is reserved": "Ta nazwa użytkownika jest zarezerwowana",
+    "Enter a valid email address": "Podaj poprawny adres email",
+    "Something went wrong on our side. Please try again.": "Coś poszło nie tak po naszej stronie. Spróbuj ponownie.",
     "Invalid credentials": "Nieprawidłowy email lub hasło",
     "Email already registered": "Ten email jest już zarejestrowany",
     "Invalid referral code": "Nieprawidłowy kod polecający",

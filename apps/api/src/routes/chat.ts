@@ -4,6 +4,9 @@ import { CHAT_ROOMS, MAX_CHAT_LENGTH, moderateMessage, type ChatRoom } from "../
 
 const PAGE_SIZE = 50;
 const REPEAT_WINDOW_MS = 30_000;
+// Chat is ephemeral: older messages are dropped as new ones arrive.
+const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const CHAT_CLOSED = { error: "Chat is paused on this demo right now.", code: "CHAT_CLOSED" };
 
 const postSchema = z.object({ body: z.string().max(MAX_CHAT_LENGTH * 2) });
 const listSchema = z.object({ after: z.string().datetime().optional() });
@@ -60,13 +63,14 @@ export default async function chatRoutes(app: FastifyInstance) {
           })
         ).reverse();
 
-    return { messages: rows.map((m) => serialize(m, req.user.sub)) };
+    return { messages: rows.map((m) => serialize(m, req.user.sub)), open: app.features.chat };
   });
 
   app.post(
     "/chat/:room",
     { preHandler: [app.authenticate], config: { rateLimit: { max: app.limits.chat, timeWindow: "1 minute" } } },
     async (req, reply) => {
+      if (!app.features.chat) return reply.code(403).send(CHAT_CLOSED);
       const { room } = req.params as { room: string };
       if (!isRoom(room)) return reply.code(404).send({ error: "Unknown chat room" });
       const parsed = postSchema.safeParse(req.body);
@@ -88,6 +92,7 @@ export default async function chatRoutes(app: FastifyInstance) {
         data: { room, userId: req.user.sub, body: moderated.body },
         include: { user: userSelect },
       });
+      await app.prisma.chatMessage.deleteMany({ where: { room, createdAt: { lt: new Date(Date.now() - RETENTION_MS) } } });
       return reply.code(201).send({ message: serialize(message, req.user.sub) });
     }
   );

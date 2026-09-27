@@ -12,6 +12,8 @@ interface User {
   balanceCents: number;
   totpEnabled?: boolean;
   ghostMode?: boolean;
+  /** The published demo login: settings that affect other visitors are read-only. */
+  shared?: boolean;
   createdAt?: string;
 }
 

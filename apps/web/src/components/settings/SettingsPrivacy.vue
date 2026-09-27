@@ -8,6 +8,7 @@ import { api } from "../../lib/api";
 import { apiErrorMessage } from "../../lib/format";
 import { t } from "../../i18n";
 import Icon from "../Icon.vue";
+import SharedLock from "./SharedLock.vue";
 import ModalDialog from "../ModalDialog.vue";
 import ToggleSwitch from "../ToggleSwitch.vue";
 
@@ -68,15 +69,17 @@ async function deleteAccount() {
 
 <template>
   <div class="space-y-6">
-    <section class="panel divide-y divide-ink-600">
-      <div class="flex items-center gap-4 p-5">
-        <div class="flex-1">
-          <p class="font-bold">{{ t("settings.ghostTitle") }}</p>
-          <p class="mt-0.5 text-sm text-ink-300">{{ t("settings.ghostText") }}</p>
+    <SharedLock>
+      <section class="panel divide-y divide-ink-600">
+        <div class="flex items-center gap-4 p-5">
+          <div class="flex-1">
+            <p class="font-bold">{{ t("settings.ghostTitle") }}</p>
+            <p class="mt-0.5 text-sm text-ink-300">{{ t("settings.ghostText") }}</p>
+          </div>
+          <ToggleSwitch :on="!!auth.user?.ghostMode" :label="t('settings.ghostTitle')" :disabled="savingGhost" @toggle="toggleGhost" />
         </div>
-        <ToggleSwitch :on="!!auth.user?.ghostMode" :label="t('settings.ghostTitle')" :disabled="savingGhost" @toggle="toggleGhost" />
-      </div>
-    </section>
+      </section>
+    </SharedLock>
 
     <section>
       <h2 class="mb-3 text-lg font-bold">{{ t("settings.browserData") }}</h2>
@@ -96,13 +99,15 @@ async function deleteAccount() {
       </div>
     </section>
 
-    <section class="rounded-lg border border-red-500/25 bg-red-500/5 p-5">
-      <p class="font-bold text-red-300">{{ t("settings.deleteTitle") }}</p>
-      <p class="mt-0.5 max-w-2xl text-sm text-ink-300">{{ t("settings.deleteText") }}</p>
-      <button type="button" class="btn mt-4 bg-red-500/15 text-red-300 hover:bg-red-500/25" @click="deleting = true">
-        <Icon name="trash" :size="16" /> {{ t("settings.deleteCta") }}
-      </button>
-    </section>
+    <SharedLock>
+      <section class="rounded-lg border border-red-500/25 bg-red-500/5 p-5">
+        <p class="font-bold text-red-300">{{ t("settings.deleteTitle") }}</p>
+        <p class="mt-0.5 max-w-2xl text-sm text-ink-300">{{ t("settings.deleteText") }}</p>
+        <button type="button" class="btn mt-4 bg-red-500/15 text-red-300 hover:bg-red-500/25" @click="deleting = true">
+          <Icon name="trash" :size="16" /> {{ t("settings.deleteCta") }}
+        </button>
+      </section>
+    </SharedLock>
 
     <ModalDialog v-if="deleting" tone="danger" icon="trash" :title="t('settings.deleteConfirmTitle')" @close="deleting = false">
       {{ t("settings.deleteConfirmText") }}

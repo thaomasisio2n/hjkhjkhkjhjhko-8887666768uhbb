@@ -30,6 +30,11 @@ model User {
   totpEnabled   Boolean  @default(false)
   // Hides the player's name and avatar from others in chat.
   ghostMode     Boolean  @default(false)
+  // Seeded accounts whose password is published (demo + friends). Anyone can
+  // sign in, so nothing that would lock others out or expose them can change.
+  shared        Boolean  @default(false)
+  // Suspended by an operator (npm run admin -- ban <email>).
+  bannedAt      DateTime?
   sessions      Session[]
   chatMessages  ChatMessage[]
   createdAt     DateTime @default(now())

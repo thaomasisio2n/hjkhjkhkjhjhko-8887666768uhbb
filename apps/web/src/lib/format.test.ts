@@ -36,8 +36,8 @@ describe("apiErrorMessage", () => {
   it("translates string errors and summarises zod field errors", () => {
     setLocale("pl");
     expect(apiErrorMessage(axiosError({ error: "Email already registered" }), "x")).toBe("Ten email jest już zarejestrowany");
-    const zod = { error: { formErrors: [], fieldErrors: { password: ["String must contain at least 8 character(s)"] } } };
-    expect(apiErrorMessage(axiosError(zod), "x")).toBe("password: String must contain at least 8 character(s)");
+    const zod = { error: { formErrors: [], fieldErrors: { password: ["That password is too common — pick something less guessable"] } } };
+    expect(apiErrorMessage(axiosError(zod), "x")).toBe("To hasło jest zbyt popularne — wybierz trudniejsze do odgadnięcia");
   });
 
   it("falls back when there is no response", () => {

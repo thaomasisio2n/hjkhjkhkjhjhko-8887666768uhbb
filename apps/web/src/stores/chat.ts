@@ -23,6 +23,8 @@ export const useChatStore = defineStore("chat", {
     loaded: { en: false, pl: false },
     failed: false,
     sending: false,
+    // False while the operator has paused chat (DISABLE_CHAT on the API).
+    open: true,
   }),
   actions: {
     append(room: ChatRoom, incoming: ChatMessage[]) {
@@ -37,6 +39,7 @@ export const useChatStore = defineStore("chat", {
         const last = this.messages[room].at(-1);
         const { data } = await api.get(`/chat/${room}`, { params: last ? { after: last.createdAt } : {} });
         this.append(room, data.messages);
+        this.open = data.open !== false;
         this.loaded[room] = true;
         this.failed = false;
       } catch {

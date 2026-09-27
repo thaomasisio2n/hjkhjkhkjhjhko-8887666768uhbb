@@ -10,6 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:seed": "tsx prisma/seed.ts",
+    "admin": "tsx src/cli/admin.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.test.json"
   },

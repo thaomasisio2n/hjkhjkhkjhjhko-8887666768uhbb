@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import argon2 from "argon2";
 import QRCode from "qrcode";
 import { z } from "zod";
+import { SHARED_ACCOUNT_ERROR } from "../plugins/auth.js";
 import { revokeSessions } from "../lib/sessions.js";
 import { generateSecret, otpauthUrl, verifyTotp } from "../lib/totp.js";
 
@@ -10,11 +11,13 @@ const codeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/) });
 const BREAK_DURATIONS = { "1h": 1, "24h": 24, "7d": 24 * 7, "30d": 24 * 30 } as const;
 const breakSchema = z.object({ duration: z.enum(Object.keys(BREAK_DURATIONS) as [keyof typeof BREAK_DURATIONS]) });
 
-const deleteSchema = z.object({ password: z.string().min(1) });
+const deleteSchema = z.object({ password: z.string().min(1).max(128) });
 
 export default async function securityRoutes(app: FastifyInstance) {
   const auth = { preHandler: [app.authenticate] };
-  const limited = (max: number) => ({ ...auth, config: { rateLimit: { max, timeWindow: "1 minute" } } });
+  // Everything that could lock other people out of the shared demo account.
+  const own = { preHandler: [app.authenticate, app.denyShared] };
+  const limited = (max: number) => ({ ...own, config: { rateLimit: { max, timeWindow: "1 minute" } } });
 
   app.post("/auth/logout", auth, async (req, reply) => {
     await app.prisma.session.update({ where: { id: req.user.sid }, data: { revokedAt: new Date() } });
@@ -25,7 +28,9 @@ export default async function securityRoutes(app: FastifyInstance) {
 
   app.get("/auth/sessions", auth, async (req) => {
     const sessions = await app.prisma.session.findMany({
-      where: { userId: req.user.sub, revokedAt: null },
+      // On the shared demo account the other sessions are other visitors:
+      // their IPs and devices are none of this visitor's business.
+      where: { userId: req.user.sub, revokedAt: null, ...(req.account.shared ? { id: req.user.sid } : {}) },
       orderBy: { lastSeenAt: "desc" },
     });
     return {
@@ -42,6 +47,7 @@ export default async function securityRoutes(app: FastifyInstance) {
 
   app.delete("/auth/sessions/:id", auth, async (req, reply) => {
     const { id } = req.params as { id: string };
+    if (req.account.shared && id !== req.user.sid) return reply.code(403).send(SHARED_ACCOUNT_ERROR);
     const { count } = await app.prisma.session.updateMany({
       where: { id, userId: req.user.sub, revokedAt: null },
       data: { revokedAt: new Date() },
@@ -50,13 +56,13 @@ export default async function securityRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
-  app.post("/auth/sessions/revoke-others", auth, async (req) => ({
+  app.post("/auth/sessions/revoke-others", own, async (req) => ({
     revoked: await revokeSessions(app, req.user.sub, req.user.sid),
   }));
 
   // --- Two-factor auth ----------------------------------------------------
 
-  app.post("/auth/2fa/setup", auth, async (req, reply) => {
+  app.post("/auth/2fa/setup", own, async (req, reply) => {
     const user = await app.prisma.user.findUniqueOrThrow({ where: { id: req.user.sub } });
     if (user.totpEnabled) return reply.code(409).send({ error: "Two-factor auth is already enabled" });
 
@@ -98,7 +104,7 @@ export default async function securityRoutes(app: FastifyInstance) {
 
   // --- Break in play ------------------------------------------------------
 
-  app.post("/auth/break", auth, async (req, reply) => {
+  app.post("/auth/break", own, async (req, reply) => {
     const parsed = breakSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 

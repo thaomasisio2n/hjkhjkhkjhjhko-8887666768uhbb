@@ -11,6 +11,7 @@ import type { IconName } from "../../lib/icons";
 import { intlLocale, t } from "../../i18n";
 import Icon from "../Icon.vue";
 import LanguageSwitch from "../LanguageSwitch.vue";
+import SharedLock from "./SharedLock.vue";
 import ToggleSwitch from "../ToggleSwitch.vue";
 import UserAvatar from "../UserAvatar.vue";
 
@@ -122,54 +123,56 @@ async function saveAvatar(avatar: string | null) {
 
       <section>
         <h2 class="mb-3 text-lg font-bold">{{ t("settings.profile") }}</h2>
-        <form class="panel space-y-4 p-5" @submit.prevent="saveProfile">
-          <div>
-            <span class="field-label">{{ t("settings.avatar") }}</span>
-            <div class="grid grid-cols-7 gap-2" role="radiogroup" :aria-label="t('settings.avatar')">
-              <button
-                type="button"
-                role="radio"
-                :aria-checked="!auth.user?.avatar"
-                :aria-label="t('settings.avatarInitials')"
-                :title="t('settings.avatarInitials')"
-                class="flex aspect-square items-center justify-center rounded-full transition hover:scale-105"
-                :class="!auth.user?.avatar ? 'ring-2 ring-accent ring-offset-2 ring-offset-ink-700' : 'opacity-70 hover:opacity-100'"
-                :disabled="savingAvatar"
-                @click="saveAvatar(null)"
-              >
-                <UserAvatar :name="auth.user?.displayName" :size="40" />
-              </button>
-              <button
-                v-for="a in AVATARS"
-                :key="a.key"
-                type="button"
-                role="radio"
-                :aria-checked="auth.user?.avatar === a.key"
-                :aria-label="a.key"
-                class="flex aspect-square items-center justify-center rounded-full transition hover:scale-105"
-                :class="auth.user?.avatar === a.key ? 'ring-2 ring-accent ring-offset-2 ring-offset-ink-700' : 'opacity-70 hover:opacity-100'"
-                :disabled="savingAvatar"
-                @click="saveAvatar(a.key)"
-              >
-                <UserAvatar :avatar="a.key" :size="40" />
-              </button>
+        <SharedLock>
+          <form class="panel space-y-4 p-5" @submit.prevent="saveProfile">
+            <div>
+              <span class="field-label">{{ t("settings.avatar") }}</span>
+              <div class="grid grid-cols-7 gap-2" role="radiogroup" :aria-label="t('settings.avatar')">
+                <button
+                  type="button"
+                  role="radio"
+                  :aria-checked="!auth.user?.avatar"
+                  :aria-label="t('settings.avatarInitials')"
+                  :title="t('settings.avatarInitials')"
+                  class="flex aspect-square items-center justify-center rounded-full transition hover:scale-105"
+                  :class="!auth.user?.avatar ? 'ring-2 ring-accent ring-offset-2 ring-offset-ink-700' : 'opacity-70 hover:opacity-100'"
+                  :disabled="savingAvatar"
+                  @click="saveAvatar(null)"
+                >
+                  <UserAvatar :name="auth.user?.displayName" :size="40" />
+                </button>
+                <button
+                  v-for="a in AVATARS"
+                  :key="a.key"
+                  type="button"
+                  role="radio"
+                  :aria-checked="auth.user?.avatar === a.key"
+                  :aria-label="a.key"
+                  class="flex aspect-square items-center justify-center rounded-full transition hover:scale-105"
+                  :class="auth.user?.avatar === a.key ? 'ring-2 ring-accent ring-offset-2 ring-offset-ink-700' : 'opacity-70 hover:opacity-100'"
+                  :disabled="savingAvatar"
+                  @click="saveAvatar(a.key)"
+                >
+                  <UserAvatar :avatar="a.key" :size="40" />
+                </button>
+              </div>
+              <p class="mt-1.5 text-xs text-ink-400">{{ t("settings.avatarHint") }}</p>
             </div>
-            <p class="mt-1.5 text-xs text-ink-400">{{ t("settings.avatarHint") }}</p>
-          </div>
-          <div>
-            <label for="set-name" class="field-label">{{ t("auth.username") }}</label>
-            <input id="set-name" v-model="displayName" type="text" minlength="2" maxlength="40" required autocomplete="nickname" class="field" />
-            <p class="mt-1.5 text-xs text-ink-400">{{ t("settings.usernameHint") }}</p>
-          </div>
-          <div>
-            <label for="set-email" class="field-label">{{ t("auth.email") }}</label>
-            <input id="set-email" :value="auth.user?.email ?? ''" readonly class="field cursor-not-allowed text-ink-400" />
-          </div>
-          <p v-if="profileError" class="rounded-md bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300">{{ profileError }}</p>
-          <button type="submit" class="btn-blue" :disabled="!profileDirty || savingProfile || displayName.trim().length < 2">
-            {{ savingProfile ? t("settings.saving") : t("settings.saveChanges") }}
-          </button>
-        </form>
+            <div>
+              <label for="set-name" class="field-label">{{ t("auth.username") }}</label>
+              <input id="set-name" v-model="displayName" type="text" minlength="2" maxlength="40" required autocomplete="nickname" class="field" />
+              <p class="mt-1.5 text-xs text-ink-400">{{ t("settings.usernameHint") }}</p>
+            </div>
+            <div>
+              <label for="set-email" class="field-label">{{ t("auth.email") }}</label>
+              <input id="set-email" :value="auth.user?.email ?? ''" readonly class="field cursor-not-allowed text-ink-400" />
+            </div>
+            <p v-if="profileError" class="rounded-md bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300">{{ profileError }}</p>
+            <button type="submit" class="btn-blue" :disabled="!profileDirty || savingProfile || displayName.trim().length < 2">
+              {{ savingProfile ? t("settings.saving") : t("settings.saveChanges") }}
+            </button>
+          </form>
+        </SharedLock>
       </section>
     </div>
   </div>

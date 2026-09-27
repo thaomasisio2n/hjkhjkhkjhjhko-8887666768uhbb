@@ -47,8 +47,9 @@ export function apiErrorMessage(err: unknown, fallback: string) {
   if (typeof data === "string") return translateServerError(data);
   if (data && typeof data === "object") {
     const fields = (data as { fieldErrors?: Record<string, string[]> }).fieldErrors ?? {};
-    const [field, messages] = Object.entries(fields)[0] ?? [];
-    if (field && messages?.[0]) return `${field}: ${messages[0]}`;
+    // The API words field errors as whole sentences ("Username must be 2–40 characters").
+    const [, messages] = Object.entries(fields)[0] ?? [];
+    if (messages?.[0]) return translateServerError(messages[0]);
   }
   return fallback;
 }
