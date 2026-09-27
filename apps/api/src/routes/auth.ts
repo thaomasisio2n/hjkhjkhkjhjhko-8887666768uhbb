@@ -16,6 +16,36 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
+const profileSchema = z.object({
+  displayName: z.string().trim().min(2).max(40),
+});
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
+});
+
+type UserRow = {
+  id: string;
+  email: string;
+  displayName: string;
+  referralCode: string;
+  balanceCents: number;
+  createdAt: Date;
+};
+
+// The one shape every auth endpoint returns (never the password hash).
+function publicUser(user: UserRow) {
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    referralCode: user.referralCode,
+    balanceCents: user.balanceCents,
+    createdAt: user.createdAt,
+  };
+}
+
 export default async function authRoutes(app: FastifyInstance) {
   app.post("/auth/register", async (req, reply) => {
     const parsed = registerSchema.safeParse(req.body);
@@ -81,16 +111,7 @@ export default async function authRoutes(app: FastifyInstance) {
     });
 
     const token = app.jwt.sign({ sub: user.id });
-    return reply.code(201).send({
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        referralCode: user.referralCode,
-        balanceCents: user.balanceCents,
-      },
-    });
+    return reply.code(201).send({ token, user: publicUser(user) });
   });
 
   app.post("/auth/login", async (req, reply) => {
@@ -106,28 +127,46 @@ export default async function authRoutes(app: FastifyInstance) {
     }
 
     const token = app.jwt.sign({ sub: user.id });
-    return reply.send({
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        referralCode: user.referralCode,
-        balanceCents: user.balanceCents,
-      },
-    });
+    return reply.send({ token, user: publicUser(user) });
   });
 
   app.get("/auth/me", { preHandler: [app.authenticate] }, async (req, reply) => {
     const user = await app.prisma.user.findUnique({ where: { id: req.user.sub } });
     if (!user) return reply.code(404).send({ error: "Not found" });
-    return {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      referralCode: user.referralCode,
-      balanceCents: user.balanceCents,
-      createdAt: user.createdAt,
-    };
+    return publicUser(user);
+  });
+
+  app.patch("/auth/me", { preHandler: [app.authenticate] }, async (req, reply) => {
+    const parsed = profileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+    const user = await app.prisma.user.update({
+      where: { id: req.user.sub },
+      data: { displayName: parsed.data.displayName },
+    });
+    return publicUser(user);
+  });
+
+  app.post("/auth/password", { preHandler: [app.authenticate] }, async (req, reply) => {
+    const parsed = passwordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+    const { currentPassword, newPassword } = parsed.data;
+
+    const user = await app.prisma.user.findUniqueOrThrow({ where: { id: req.user.sub } });
+    if (!(await argon2.verify(user.passwordHash, currentPassword))) {
+      return reply.code(400).send({ error: "Current password is incorrect" });
+    }
+    if (currentPassword === newPassword) {
+      return reply.code(400).send({ error: "New password must be different from the current one" });
+    }
+
+    await app.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await argon2.hash(newPassword) },
+    });
+    return { ok: true };
   });
 }

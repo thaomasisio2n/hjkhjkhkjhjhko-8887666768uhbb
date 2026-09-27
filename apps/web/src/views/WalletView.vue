@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useWalletStore } from "../stores/wallet";
+import { useToastStore } from "../stores/toast";
 import { useUiStore } from "../stores/ui";
 import { formatDate } from "../lib/format";
 import { txMeta } from "../lib/transactions";
@@ -9,6 +10,42 @@ import Icon from "../components/Icon.vue";
 
 const wallet = useWalletStore();
 const ui = useUiStore();
+const toast = useToastStore();
+
+type Filter = "all" | "deposits" | "bonuses";
+const filter = ref<Filter>("all");
+const filters: { id: Filter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "deposits", label: "Deposits" },
+  { id: "bonuses", label: "Bonuses" },
+];
+
+const visible = computed(() =>
+  wallet.transactions.filter((t) =>
+    filter.value === "all" ? true : filter.value === "deposits" ? t.type === "TOPUP" : t.type !== "TOPUP"
+  )
+);
+
+function exportCsv() {
+  const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const rows = [
+    ["Date", "Type", "Amount (USD)", "Details"],
+    ...visible.value.map((t) => [
+      new Date(t.createdAt).toISOString(),
+      txMeta(t.type).label,
+      (t.amountCents / 100).toFixed(2),
+      t.note ?? "",
+    ]),
+  ];
+  const csv = rows.map((r) => r.map(cell).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `novaspin-demo-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast.push(`Exported ${visible.value.length} transactions`, "success", "download");
+}
 
 onMounted(() => {
   wallet.fetchBalance();
@@ -61,16 +98,37 @@ const bonuses = computed(() =>
     </div>
 
     <section>
-      <h2 class="mb-3 text-lg font-bold">Transactions</h2>
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-lg font-bold">Transactions</h2>
+        <div class="flex items-center gap-2">
+          <div class="inline-flex rounded-full bg-ink-900 p-1" role="tablist" aria-label="Filter transactions">
+            <button
+              v-for="f in filters"
+              :key="f.id"
+              type="button"
+              role="tab"
+              :aria-selected="filter === f.id"
+              class="rounded-full px-4 py-1.5 text-sm font-semibold transition"
+              :class="filter === f.id ? 'bg-ink-600 text-white' : 'text-ink-300 hover:text-white'"
+              @click="filter = f.id"
+            >
+              {{ f.label }}
+            </button>
+          </div>
+          <button type="button" class="btn-ghost h-9 px-3" :disabled="!visible.length" title="Download as CSV" @click="exportCsv">
+            <Icon name="download" :size="16" /> <span class="hidden sm:inline">CSV</span>
+          </button>
+        </div>
+      </div>
       <div class="overflow-hidden rounded-lg shadow-card">
         <div class="hidden grid-cols-[1.2fr_2fr_1.2fr_1fr] gap-4 bg-ink-900 px-5 py-3 text-xs font-bold uppercase tracking-wide text-ink-400 sm:grid">
           <span>Type</span><span>Details</span><span>Date</span><span class="text-right">Amount</span>
         </div>
-        <div v-if="wallet.transactions.length === 0" class="bg-ink-700 px-5 py-10 text-center text-sm text-ink-300">
-          No transactions yet.
+        <div v-if="visible.length === 0" class="bg-ink-700 px-5 py-10 text-center text-sm text-ink-300">
+          {{ wallet.transactions.length ? "Nothing matches this filter." : "No transactions yet." }}
         </div>
         <div
-          v-for="(tx, i) in wallet.transactions"
+          v-for="(tx, i) in visible"
           :key="tx.id"
           class="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-0.5 px-4 py-3 text-sm sm:grid-cols-[1.2fr_2fr_1.2fr_1fr] sm:gap-4 sm:px-5"
           :class="i % 2 ? 'bg-ink-800' : 'bg-ink-700'"

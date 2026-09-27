@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useUiStore } from "../stores/ui";
 import { useWalletStore } from "../stores/wallet";
-import { initials } from "../lib/format";
+import { api } from "../lib/api";
+import { apiErrorMessage, initials } from "../lib/format";
 import type { IconName } from "../lib/icons";
 import Icon from "../components/Icon.vue";
 
@@ -47,6 +48,56 @@ const preferences = computed(() => [
     desktopOnly: true,
   },
 ]);
+
+// Profile
+const displayName = ref(auth.user?.displayName ?? "");
+const savingProfile = ref(false);
+const profileError = ref("");
+watch(
+  () => auth.user?.displayName,
+  (name) => {
+    if (name && !savingProfile.value) displayName.value = name;
+  }
+);
+const profileDirty = computed(() => displayName.value.trim() !== (auth.user?.displayName ?? ""));
+
+async function saveProfile() {
+  profileError.value = "";
+  savingProfile.value = true;
+  try {
+    const { data } = await api.patch("/auth/me", { displayName: displayName.value.trim() });
+    auth.user = data;
+    displayName.value = data.displayName;
+    toast.push("Profile updated", "success", "user");
+  } catch (e) {
+    profileError.value = apiErrorMessage(e, "Couldn't save your profile.");
+  } finally {
+    savingProfile.value = false;
+  }
+}
+
+// Password
+const currentPassword = ref("");
+const newPassword = ref("");
+const confirmPassword = ref("");
+const savingPassword = ref(false);
+const passwordError = ref("");
+const mismatch = computed(() => !!confirmPassword.value && newPassword.value !== confirmPassword.value);
+
+async function changePassword() {
+  if (mismatch.value) return;
+  passwordError.value = "";
+  savingPassword.value = true;
+  try {
+    await api.post("/auth/password", { currentPassword: currentPassword.value, newPassword: newPassword.value });
+    currentPassword.value = newPassword.value = confirmPassword.value = "";
+    toast.push("Password changed", "success", "lock");
+  } catch (e) {
+    passwordError.value = apiErrorMessage(e, "Couldn't change your password.");
+  } finally {
+    savingPassword.value = false;
+  }
+}
 
 function clearRecent() {
   ui.clearRecent();
@@ -115,22 +166,55 @@ function logout() {
         </div>
       </section>
 
-      <!-- Account -->
+      <!-- Profile -->
       <section>
-        <h2 class="mb-3 text-lg font-bold">Account</h2>
-        <div class="panel space-y-4 p-5">
+        <h2 class="mb-3 text-lg font-bold">Profile</h2>
+        <form class="panel space-y-4 p-5" @submit.prevent="saveProfile">
           <div>
             <label for="set-name" class="field-label">Username</label>
-            <input id="set-name" :value="auth.user?.displayName ?? ''" readonly class="field text-ink-300" />
+            <input id="set-name" v-model="displayName" type="text" minlength="2" maxlength="40" required autocomplete="nickname" class="field" />
+            <p class="mt-1.5 text-xs text-ink-400">Shown to friends you invite and in the top bar.</p>
           </div>
           <div>
             <label for="set-email" class="field-label">Email</label>
-            <input id="set-email" :value="auth.user?.email ?? ''" readonly class="field text-ink-300" />
+            <input id="set-email" :value="auth.user?.email ?? ''" readonly class="field cursor-not-allowed text-ink-400" />
           </div>
-          <p class="text-xs text-ink-400">Profile editing isn't part of this demo API, so these fields are read-only.</p>
-        </div>
+          <p v-if="profileError" class="rounded-md bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300">{{ profileError }}</p>
+          <button type="submit" class="btn-blue" :disabled="!profileDirty || savingProfile || displayName.trim().length < 2">
+            {{ savingProfile ? "Saving…" : "Save changes" }}
+          </button>
+        </form>
       </section>
     </div>
+
+    <!-- Security -->
+    <section>
+      <h2 class="mb-3 text-lg font-bold">Security</h2>
+      <form class="panel grid gap-4 p-5 sm:grid-cols-3" @submit.prevent="changePassword">
+        <div>
+          <label for="pw-current" class="field-label">Current password</label>
+          <input id="pw-current" v-model="currentPassword" type="password" autocomplete="current-password" required class="field" />
+        </div>
+        <div>
+          <label for="pw-new" class="field-label">New password</label>
+          <input id="pw-new" v-model="newPassword" type="password" autocomplete="new-password" minlength="8" required class="field" />
+        </div>
+        <div>
+          <label for="pw-confirm" class="field-label">Confirm new password</label>
+          <input id="pw-confirm" v-model="confirmPassword" type="password" autocomplete="new-password" minlength="8" required class="field"
+            :class="{ '!border-red-500/60': mismatch }" />
+        </div>
+        <div class="flex flex-col gap-3 sm:col-span-3 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-xs" :class="mismatch ? 'font-semibold text-red-300' : 'text-ink-400'">
+            {{ mismatch ? "Passwords don't match." : "At least 8 characters. You'll stay signed in on this device." }}
+          </p>
+          <button type="submit" class="btn-blue" :disabled="savingPassword || mismatch || !currentPassword || newPassword.length < 8">
+            <Icon name="lock" :size="16" /> {{ savingPassword ? "Updating…" : "Change password" }}
+          </button>
+        </div>
+        <p v-if="passwordError" class="rounded-md bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 sm:col-span-3">{{ passwordError }}</p>
+      </form>
+    </section>
 
     <!-- Data -->
     <section>

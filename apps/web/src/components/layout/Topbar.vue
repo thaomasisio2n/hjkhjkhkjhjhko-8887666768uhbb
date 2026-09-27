@@ -8,6 +8,7 @@ import { initials } from "../../lib/format";
 import CoinIcon from "../CoinIcon.vue";
 import Icon from "../Icon.vue";
 import Logo from "../Logo.vue";
+import NotificationBell from "../NotificationBell.vue";
 
 const auth = useAuthStore();
 const wallet = useWalletStore();
@@ -16,8 +17,8 @@ const router = useRouter();
 
 const menuOpen = ref(false);
 
+// Balance is kept fresh by the notification bell's polling.
 onMounted(() => {
-  wallet.fetchBalance().catch(() => {});
   if (!auth.user) auth.fetchMe().catch(() => {});
 });
 
@@ -52,7 +53,7 @@ function logout() {
         </button>
       </div>
 
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-0.5 sm:gap-1">
         <button
           type="button"
           class="hidden h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold text-white transition hover:bg-ink-700 sm:flex"
@@ -62,6 +63,8 @@ function logout() {
           <span class="hidden md:inline">Search</span>
           <kbd class="hidden rounded border border-ink-600 px-1.5 text-[11px] font-bold text-ink-400 lg:inline">/</kbd>
         </button>
+
+        <NotificationBell />
 
         <div class="relative">
           <button

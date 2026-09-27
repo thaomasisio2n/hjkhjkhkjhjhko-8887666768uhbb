@@ -20,6 +20,8 @@ fresh account every time.
 ## Endpoints
 
 - `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
+- `PATCH /auth/me` (change display name), `POST /auth/password` (needs the
+  current password)
 - `GET /wallet`, `GET /wallet/transactions`, `POST /wallet/topup` (always
   succeeds instantly — no processor, no blockchain)
 - `GET /referrals` — your code, link (built from `WEB_ORIGIN`), invited

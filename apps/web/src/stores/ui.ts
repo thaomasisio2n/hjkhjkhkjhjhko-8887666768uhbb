@@ -31,6 +31,7 @@ export const useUiStore = defineStore("ui", {
     favourites: load<string[]>("ns_favourites", []),
     recent: load<string[]>("ns_recent", []),
     recentSearches: load<string[]>("ns_recent_searches", []),
+    notificationsSeenAt: load<number>("ns_notifications_seen", 0),
   }),
   getters: {
     isFavourite: (state) => (slug: string) => state.favourites.includes(slug),
@@ -75,6 +76,10 @@ export const useUiStore = defineStore("ui", {
     clearSearches() {
       this.recentSearches = [];
       save("ns_recent_searches", this.recentSearches);
+    },
+    markNotificationsSeen() {
+      this.notificationsSeenAt = Date.now();
+      save("ns_notifications_seen", this.notificationsSeenAt);
     },
     openWallet() {
       this.mobileNavOpen = false;

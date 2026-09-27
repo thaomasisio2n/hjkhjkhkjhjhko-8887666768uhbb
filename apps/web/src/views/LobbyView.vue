@@ -72,6 +72,24 @@ const tabGames = computed<Game[]>(() => {
   return cat ? games.byCategory[cat.name] ?? [] : [];
 });
 
+// Category grids get a provider filter + sort; favourites/recent keep their own order.
+type SortKey = "az" | "za" | "provider";
+const providerFilter = ref("");
+const sortBy = ref<SortKey>("az");
+watch(tab, () => (providerFilter.value = ""));
+
+const isCategoryTab = computed(() => categories.value.some((c) => c.slug === tab.value));
+const tabProviders = computed(() => [...new Set(tabGames.value.map((g) => g.provider))].sort());
+
+const gridGames = computed(() => {
+  if (!isCategoryTab.value) return tabGames.value;
+  const list = providerFilter.value ? tabGames.value.filter((g) => g.provider === providerFilter.value) : [...tabGames.value];
+  const byTitle = (a: Game, b: Game) => a.title.localeCompare(b.title);
+  if (sortBy.value === "za") return list.sort((a, b) => byTitle(b, a));
+  if (sortBy.value === "provider") return list.sort((a, b) => a.provider.localeCompare(b.provider) || byTitle(a, b));
+  return list.sort(byTitle);
+});
+
 const results = computed(() => {
   const q = query.value.trim().toLowerCase();
   if (!q) return null;
@@ -258,17 +276,36 @@ const promos: {
 
     <!-- Single tab grid -->
     <section v-else>
-      <h2 class="mb-4 flex items-center gap-2 text-base font-bold sm:text-lg">
-        <Icon v-if="activeTab" :name="activeTab.icon" :size="18" class="text-ink-300" />
-        {{ activeTab?.label }}
-        <span class="text-sm font-semibold text-ink-400">({{ tabGames.length }})</span>
-      </h2>
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="flex items-center gap-2 text-base font-bold sm:text-lg">
+          <Icon v-if="activeTab" :name="activeTab.icon" :size="18" class="text-ink-300" />
+          {{ activeTab?.label }}
+          <span class="text-sm font-semibold text-ink-400">({{ gridGames.length }})</span>
+        </h2>
+        <div v-if="isCategoryTab && games.loaded" class="flex w-full gap-2 sm:w-auto">
+          <label class="relative flex-1 sm:flex-none">
+            <select v-model="providerFilter" aria-label="Filter by provider" class="h-10 w-full appearance-none rounded-md border-2 border-ink-600 bg-ink-900 pl-3 pr-9 text-sm font-semibold text-white transition hover:border-ink-500 focus:border-ink-400 focus:outline-none sm:w-48">
+              <option value="">All providers</option>
+              <option v-for="p in tabProviders" :key="p" :value="p">{{ p }}</option>
+            </select>
+            <Icon name="chevron-down" :size="16" class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-300" />
+          </label>
+          <label class="relative flex-1 sm:flex-none">
+            <select v-model="sortBy" aria-label="Sort games" class="h-10 w-full appearance-none rounded-md border-2 border-ink-600 bg-ink-900 pl-3 pr-9 text-sm font-semibold text-white transition hover:border-ink-500 focus:border-ink-400 focus:outline-none sm:w-40">
+              <option value="az">Sort: A–Z</option>
+              <option value="za">Sort: Z–A</option>
+              <option value="provider">Sort: Provider</option>
+            </select>
+            <Icon name="chevron-down" :size="16" class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-300" />
+          </label>
+        </div>
+      </div>
 
       <div v-if="!games.loaded" class="grid grid-cols-3 gap-x-2.5 gap-y-4 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 xl:grid-cols-6">
         <div v-for="n in 12" :key="n" class="aspect-[3/4] animate-pulse rounded-lg bg-ink-700" />
       </div>
-      <div v-else-if="tabGames.length" class="grid grid-cols-3 gap-x-2.5 gap-y-4 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 xl:grid-cols-6">
-        <GameCard v-for="game in tabGames" :key="game.id" :game="game" />
+      <div v-else-if="gridGames.length" class="grid grid-cols-3 gap-x-2.5 gap-y-4 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 xl:grid-cols-6">
+        <GameCard v-for="game in gridGames" :key="game.id" :game="game" />
       </div>
       <div v-else class="panel flex flex-col items-center gap-2 px-6 py-14 text-center">
         <Icon :name="tab === 'favourites' ? 'heart' : 'history'" :size="28" class="text-ink-400" />
