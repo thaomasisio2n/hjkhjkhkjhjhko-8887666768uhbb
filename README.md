@@ -28,8 +28,10 @@ an iframe, e.g. `?gameid=...&mode=demo&token=...`):
   notifications, a notification bell that polls the wallet (a friend
   signing up with your link pops up live), a settings page (edit username,
   change password, "streamer mode" that masks every balance on screen —
-  handy when recording), wallet history filters with CSV export, a 404
-  page, a game page with the iframe slot left as a placeholder, a wallet page + a fake "crypto pay"
+  handy when recording), responsible-play tools (a daily deposit limit the
+  API enforces, and a "reality check" reminder showing session time and
+  deposits), wallet history filters with CSV export, a 404 page, an
+  animated launch splash on the game page, a game page with the iframe slot left as a placeholder, a wallet page + a fake "crypto pay"
   deposit modal that always instantly credits the balance (no blockchain,
   no processor — it's a demo button), and a referral dashboard (code,
   invited users, earned bonus). Game cover art is generated procedurally

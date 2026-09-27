@@ -20,6 +20,7 @@ const game = ref<Game | null>(null);
 const loading = ref(true);
 const notFound = ref(false);
 const theatre = ref(false);
+const splash = ref(true);
 const stage = ref<HTMLElement | null>(null);
 
 async function load(slug: string) {
@@ -30,6 +31,9 @@ async function load(slug: string) {
     game.value = data.game;
     setTitle(data.game.title);
     ui.pushRecent(slug);
+    // Launch splash, like a provider client booting; near-instant with reduced motion.
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    setTimeout(() => (splash.value = false), reduced ? 150 : 1100);
   } catch {
     notFound.value = true;
   } finally {
@@ -73,6 +77,22 @@ function fullscreen() {
             <GameCover :title="game.title" :category="game.category" :show-title="false" />
           </div>
           <div class="absolute inset-0 bg-gradient-to-b from-ink-950/30 via-ink-950/50 to-ink-950/80" />
+
+          <Transition leave-active-class="transition duration-300" leave-to-class="opacity-0">
+            <div v-if="splash" class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 bg-ink-950 p-6" role="status">
+              <div class="absolute inset-0 opacity-40 blur-3xl">
+                <GameCover :title="game.title" :category="game.category" :show-title="false" />
+              </div>
+              <p class="relative text-2xl font-black uppercase italic tracking-tight text-white/90 sm:text-4xl">{{ game.provider }}</p>
+              <div class="relative w-48 sm:w-64">
+                <div class="h-1.5 overflow-hidden rounded-full bg-white/15">
+                  <div class="h-full origin-left animate-load-bar rounded-full bg-accent" />
+                </div>
+                <p class="mt-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Loading {{ game.title }}</p>
+              </div>
+              <Logo size="sm" class="pointer-events-none absolute bottom-5 opacity-50" />
+            </div>
+          </Transition>
 
           <div class="relative flex h-full flex-col items-center justify-center gap-5 p-6 text-center">
             <div class="aspect-[3/4] w-28 overflow-hidden rounded-lg shadow-lift ring-1 ring-white/10 sm:w-36">

@@ -4,7 +4,7 @@ import { RouterLink } from "vue-router";
 import { useWalletStore } from "../stores/wallet";
 import { useToastStore } from "../stores/toast";
 import { useUiStore } from "../stores/ui";
-import { formatUsd } from "../lib/format";
+import { apiErrorMessage, formatUsd } from "../lib/format";
 import { txMeta } from "../lib/transactions";
 import CoinIcon from "./CoinIcon.vue";
 import Icon from "./Icon.vue";
@@ -31,7 +31,10 @@ const quickAmounts = [25, 100, 500, 1000, 5000];
 const MAX_USD = 1_000_000;
 
 const amountCents = computed(() => Math.round(Number(amount.value || 0) * 100));
-const valid = computed(() => amountCents.value > 0 && amountCents.value <= MAX_USD * 100);
+const overLimit = computed(
+  () => wallet.remainingLimitCents !== null && amountCents.value > wallet.remainingLimitCents
+);
+const valid = computed(() => amountCents.value > 0 && amountCents.value <= MAX_USD * 100 && !overLimit.value);
 const selected = computed(() => methods.find((m) => m.id === method.value)!);
 
 function close() {
@@ -61,8 +64,9 @@ async function deposit() {
     await wallet.topup(amountCents.value, method.value);
     credited.value = amountCents.value;
     toast.push(`${formatUsd(amountCents.value)} credited to your demo balance`, "success", "wallet");
-  } catch {
-    error.value = "Couldn't reach the demo API. Is it running on port 8787?";
+  } catch (e) {
+    error.value = apiErrorMessage(e, "Couldn't reach the demo API. Is it running on port 8787?");
+    wallet.fetchBalance().catch(() => {});
   }
 }
 </script>
@@ -184,6 +188,21 @@ async function deposit() {
             <p>
               <span class="font-bold">Simulated payment.</span> No wallet connection, no blockchain, no real
               transaction &mdash; this button just credits your demo balance.
+            </p>
+          </div>
+
+          <div v-if="wallet.depositLimitCents !== null" class="rounded-lg bg-ink-900 p-3 text-xs">
+            <div class="flex items-center justify-between font-semibold">
+              <span class="flex items-center gap-1.5 text-ink-300"><Icon name="shield" :size="14" /> Daily deposit limit</span>
+              <span class="tabular-nums">{{ formatUsd(wallet.depositedTodayCents) }} / {{ formatUsd(wallet.depositLimitCents) }}</span>
+            </div>
+            <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-700">
+              <div class="h-full rounded-full transition-all" :class="overLimit || wallet.remainingLimitCents === 0 ? 'bg-red-400' : 'bg-accent'"
+                :style="{ width: `${Math.min(100, (wallet.depositedTodayCents / wallet.depositLimitCents) * 100)}%` }" />
+            </div>
+            <p class="mt-2" :class="overLimit ? 'font-semibold text-red-300' : 'text-ink-400'">
+              {{ overLimit ? `This is over your limit — ${formatUsd(wallet.remainingLimitCents ?? 0)} left in the next 24 hours.` : `${formatUsd(wallet.remainingLimitCents ?? 0)} left in the next 24 hours.` }}
+              <RouterLink :to="{ name: 'settings' }" class="font-semibold text-white underline-offset-2 hover:underline" @click="close">Change</RouterLink>
             </p>
           </div>
 

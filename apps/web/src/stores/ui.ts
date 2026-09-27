@@ -32,6 +32,8 @@ export const useUiStore = defineStore("ui", {
     recent: load<string[]>("ns_recent", []),
     recentSearches: load<string[]>("ns_recent_searches", []),
     notificationsSeenAt: load<number>("ns_notifications_seen", 0),
+    // Reality-check reminder interval in minutes; 0 = off.
+    realityCheckMinutes: load<number>("ns_reality_check", 0),
   }),
   getters: {
     isFavourite: (state) => (slug: string) => state.favourites.includes(slug),
@@ -76,6 +78,10 @@ export const useUiStore = defineStore("ui", {
     clearSearches() {
       this.recentSearches = [];
       save("ns_recent_searches", this.recentSearches);
+    },
+    setRealityCheck(minutes: number) {
+      this.realityCheckMinutes = minutes;
+      save("ns_reality_check", minutes);
     },
     markNotificationsSeen() {
       this.notificationsSeenAt = Date.now();

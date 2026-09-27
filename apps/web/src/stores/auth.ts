@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import axios from "axios";
 import { useWalletStore } from "./wallet";
+import { clearSession } from "../lib/session";
 
 interface User {
   id: string;
@@ -46,6 +47,7 @@ export const useAuthStore = defineStore("auth", {
       this.token = null;
       this.user = null;
       localStorage.removeItem("demo_token");
+      clearSession();
       // Don't show the previous account's balance/history to the next login.
       useWalletStore().$reset();
     },

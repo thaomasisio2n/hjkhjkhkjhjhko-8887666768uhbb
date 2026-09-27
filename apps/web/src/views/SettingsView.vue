@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useUiStore } from "../stores/ui";
 import { useWalletStore } from "../stores/wallet";
 import { api } from "../lib/api";
-import { apiErrorMessage, initials } from "../lib/format";
+import { apiErrorMessage, formatUsd, initials } from "../lib/format";
+import { formatDuration, sessionStart } from "../lib/session";
 import type { IconName } from "../lib/icons";
 import Icon from "../components/Icon.vue";
 
@@ -98,6 +99,39 @@ async function changePassword() {
     savingPassword.value = false;
   }
 }
+
+// Responsible play
+const LIMIT_PRESETS = [10_000, 50_000, 100_000, 500_000];
+const REALITY_OPTIONS = [0, 15, 30, 60];
+const limitInput = ref<number | "">("");
+const savingLimit = ref(false);
+watch(
+  () => wallet.depositLimitCents,
+  (cents) => (limitInput.value = cents ? cents / 100 : ""),
+  { immediate: true }
+);
+const limitInputCents = computed(() => Math.round(Number(limitInput.value || 0) * 100));
+const limitUsage = computed(() =>
+  wallet.depositLimitCents ? Math.min(100, (wallet.depositedTodayCents / wallet.depositLimitCents) * 100) : 0
+);
+
+async function saveLimit(cents: number | null) {
+  savingLimit.value = true;
+  try {
+    await wallet.setDepositLimit(cents);
+    toast.push(cents ? `Daily deposit limit set to ${formatUsd(cents)}` : "Daily deposit limit removed", "success", "shield");
+  } catch (e) {
+    toast.push(apiErrorMessage(e, "Couldn't update your limit."), "error");
+  } finally {
+    savingLimit.value = false;
+  }
+}
+
+const started = sessionStart();
+const now = ref(Date.now());
+const clock = setInterval(() => (now.value = Date.now()), 30_000);
+onBeforeUnmount(() => clearInterval(clock));
+const sessionLength = computed(() => formatDuration(now.value - started));
 
 function clearRecent() {
   ui.clearRecent();
@@ -214,6 +248,83 @@ function logout() {
         </div>
         <p v-if="passwordError" class="rounded-md bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 sm:col-span-3">{{ passwordError }}</p>
       </form>
+    </section>
+
+    <!-- Responsible play -->
+    <section>
+      <h2 class="mb-3 flex items-center gap-2 text-lg font-bold"><Icon name="shield" :size="18" class="text-ink-300" /> Responsible play</h2>
+      <div class="grid gap-4 lg:grid-cols-2">
+        <div class="panel p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="font-bold">Daily deposit limit</p>
+              <p class="mt-0.5 text-sm text-ink-300">Caps deposits in any rolling 24 hours. The API enforces it.</p>
+            </div>
+            <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-bold" :class="wallet.depositLimitCents ? 'bg-accent/15 text-accent' : 'bg-ink-600 text-ink-300'">
+              {{ wallet.depositLimitCents ? formatUsd(wallet.depositLimitCents) : "No limit" }}
+            </span>
+          </div>
+
+          <div v-if="wallet.depositLimitCents" class="mt-4">
+            <div class="flex justify-between text-xs font-semibold text-ink-300">
+              <span>Used in the last 24 h</span>
+              <span class="tabular-nums">{{ formatUsd(wallet.depositedTodayCents) }} / {{ formatUsd(wallet.depositLimitCents) }}</span>
+            </div>
+            <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-ink-800">
+              <div class="h-full rounded-full transition-all" :class="limitUsage >= 100 ? 'bg-red-400' : 'bg-accent'" :style="{ width: `${limitUsage}%` }" />
+            </div>
+          </div>
+
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button
+              v-for="cents in LIMIT_PRESETS"
+              :key="cents"
+              type="button"
+              class="rounded-md px-3 py-1.5 text-xs font-bold transition"
+              :class="wallet.depositLimitCents === cents ? 'bg-ink-500 text-white' : 'bg-ink-800 text-ink-300 hover:bg-ink-600 hover:text-white'"
+              :disabled="savingLimit"
+              @click="saveLimit(cents)"
+            >
+              {{ formatUsd(cents).replace(".00", "") }}
+            </button>
+          </div>
+          <form class="mt-3 flex gap-2" @submit.prevent="saveLimit(limitInputCents)">
+            <div class="relative flex-1">
+              <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-ink-400">$</span>
+              <input v-model.number="limitInput" type="number" min="10" step="1" inputmode="numeric" aria-label="Custom daily limit in USD" placeholder="Custom amount" class="field pl-7" />
+            </div>
+            <button type="submit" class="btn-blue" :disabled="savingLimit || limitInputCents < 1000">Set</button>
+            <button v-if="wallet.depositLimitCents" type="button" class="btn-ghost" :disabled="savingLimit" @click="saveLimit(null)">Remove</button>
+          </form>
+          <p class="mt-2 text-xs text-ink-400">Minimum $10.</p>
+        </div>
+
+        <div class="panel p-5">
+          <p class="font-bold">Reality check</p>
+          <p class="mt-0.5 text-sm text-ink-300">Get a reminder of how long you've been here, at a set interval.</p>
+          <div class="mt-4 inline-flex rounded-full bg-ink-900 p-1" role="radiogroup" aria-label="Reality check interval">
+            <button
+              v-for="m in REALITY_OPTIONS"
+              :key="m"
+              type="button"
+              role="radio"
+              :aria-checked="ui.realityCheckMinutes === m"
+              class="rounded-full px-4 py-1.5 text-sm font-semibold transition"
+              :class="ui.realityCheckMinutes === m ? 'bg-ink-600 text-white' : 'text-ink-300 hover:text-white'"
+              @click="ui.setRealityCheck(m)"
+            >
+              {{ m ? `${m} min` : "Off" }}
+            </button>
+          </div>
+          <div class="mt-5 flex items-center gap-3 rounded-lg bg-ink-800 p-3">
+            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue/15 text-blue-hover"><Icon name="clock" :size="17" /></span>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-ink-400">Current session</p>
+              <p class="font-bold">{{ sessionLength }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Data -->

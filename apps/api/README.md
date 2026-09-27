@@ -22,8 +22,11 @@ fresh account every time.
 - `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
 - `PATCH /auth/me` (change display name), `POST /auth/password` (needs the
   current password)
-- `GET /wallet`, `GET /wallet/transactions`, `POST /wallet/topup` (always
-  succeeds instantly — no processor, no blockchain)
+- `GET /wallet` (balance, daily deposit limit, deposited in the last 24h),
+  `GET /wallet/transactions`, `POST /wallet/topup` (credits instantly — no
+  processor, no blockchain — unless it would exceed the deposit limit)
+- `PUT /wallet/limits` — set (`depositLimitCents`, min 1000) or remove
+  (`null`) the rolling-24h deposit limit
 - `GET /referrals` — your code, link (built from `WEB_ORIGIN`), invited
   friends, earnings and the current bonus amounts
 - `GET /referrals/lookup/:code` — public, case-insensitive: confirms a code

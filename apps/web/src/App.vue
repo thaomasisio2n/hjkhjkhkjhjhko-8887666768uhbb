@@ -8,6 +8,7 @@ import MobileNav from "./components/layout/MobileNav.vue";
 import Sidebar from "./components/layout/Sidebar.vue";
 import SiteFooter from "./components/layout/SiteFooter.vue";
 import Topbar from "./components/layout/Topbar.vue";
+import RealityCheck from "./components/RealityCheck.vue";
 import SearchOverlay from "./components/SearchOverlay.vue";
 import ToastHost from "./components/ToastHost.vue";
 import WalletModal from "./components/WalletModal.vue";
@@ -57,6 +58,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
     <MobileNav />
     <WalletModal v-if="ui.walletOpen" />
     <SearchOverlay v-if="ui.searchOpen" />
+    <RealityCheck />
   </div>
 
   <ToastHost />

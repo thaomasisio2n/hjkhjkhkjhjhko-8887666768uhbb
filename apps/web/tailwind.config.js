@@ -40,11 +40,13 @@ export default {
           to: { opacity: "1", transform: "translateY(0) scale(1)" },
         },
         "slide-in": { from: { transform: "translateX(-100%)" }, to: { transform: "translateX(0)" } },
+        "load-bar": { from: { transform: "scaleX(0)" }, to: { transform: "scaleX(1)" } },
       },
       animation: {
         "fade-in": "fade-in 150ms ease-out",
         "pop-in": "pop-in 180ms ease-out",
         "slide-in": "slide-in 200ms ease-out",
+        "load-bar": "load-bar 1s cubic-bezier(0.3, 0.6, 0.3, 1) forwards",
       },
     },
   },

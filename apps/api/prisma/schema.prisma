@@ -18,6 +18,8 @@ model User {
   referredBy    User?    @relation("Referrals", fields: [referredById], references: [id])
   referrals     User[]   @relation("Referrals")
   transactions  Transaction[]
+  // Responsible-play: optional cap on demo deposits in any rolling 24h window.
+  depositLimitCents Int?
   createdAt     DateTime @default(now())
 }
 
