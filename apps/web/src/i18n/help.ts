@@ -31,7 +31,7 @@ const en: HelpCollection[] = [
       {
         id: "demo-login",
         q: "How do I sign in quickly?",
-        a: "Use “Continue with demo account” on the sign-in page (demo@novaspin.test / demo1234). Re-running npm start resets that account's break and two-factor settings, so it's always usable for a recording.",
+        a: "Use “Continue with demo account” on the sign-in page (demo@novaspin.test / demo1234). Everyone shares it, so its password, profile, two-factor, limits and breaks are read-only; create your own account to try those.",
       },
       {
         id: "mobile",
@@ -58,7 +58,7 @@ const en: HelpCollection[] = [
       {
         id: "2fa-lost",
         q: "I lost access to my authenticator app.",
-        a: "This demo has no account recovery by email. Whoever runs the demo can clear the two-factor fields for your account in the database; the shared demo account is reset automatically by npm start.",
+        a: "This demo has no account recovery by email. Whoever runs the demo can clear the two-factor fields for your account in the database. The shared demo account can't have two-factor turned on at all.",
       },
       {
         id: "sessions",
@@ -198,7 +198,7 @@ const pl: HelpCollection[] = [
       {
         id: "demo-login",
         q: "Jak szybko się zalogować?",
-        a: "Na stronie logowania kliknij „Kontynuuj z kontem demo” (demo@novaspin.test / demo1234). Ponowne npm start resetuje przerwę i 2FA na tym koncie, więc zawsze nadaje się do nagrania.",
+        a: "Na stronie logowania kliknij „Kontynuuj z kontem demo” (demo@novaspin.test / demo1234). Korzystają z niego wszyscy, więc hasło, profil, 2FA, limity i przerwy są na nim tylko do odczytu; żeby je wypróbować, załóż własne konto.",
       },
       {
         id: "mobile",
@@ -225,7 +225,7 @@ const pl: HelpCollection[] = [
       {
         id: "2fa-lost",
         q: "Straciłem dostęp do aplikacji uwierzytelniającej.",
-        a: "To demo nie ma odzyskiwania konta przez email. Osoba, która prowadzi demo, może wyczyścić pola 2FA Twojego konta w bazie; wspólne konto demo resetuje się samo przy npm start.",
+        a: "To demo nie ma odzyskiwania konta przez email. Osoba, która prowadzi demo, może wyczyścić pola 2FA Twojego konta w bazie. Na wspólnym koncie demo nie da się w ogóle włączyć 2FA.",
       },
       {
         id: "sessions",

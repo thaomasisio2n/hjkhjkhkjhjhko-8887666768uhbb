@@ -27,6 +27,23 @@ jobs:
       - run: npm test
       - run: npm run build:api && npm run build:web
 
+  security:
+    name: Dependency audit and secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Anything shipped to users (not dev tooling) with a high/critical advisory fails the build.
+      - run: npm audit --omit=dev --audit-level=high
+      - name: Scan for committed secrets (gitleaks)
+        env:
+          GITLEAKS_VERSION: 8.28.0
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar xz gitleaks
+          ./gitleaks dir --redact --no-banner .
+
   e2e:
     name: End-to-end (Playwright)
     needs: checks
@@ -52,9 +69,21 @@ jobs:
           retention-days: 7
 
   docker:
-    name: Docker images build
+    name: Docker images build and smoke test
     needs: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: docker compose build
+      - run: docker compose up -d --wait
+      - name: Check security headers and non-root containers
+        run: |
+          curl -fsS http://localhost:8787/health
+          curl -fsSI http://localhost:8080/ | tee headers.txt
+          grep -qi "^content-security-policy: .*connect-src 'self' http://localhost:8787" headers.txt
+          grep -qi "^x-frame-options: DENY" headers.txt
+          grep -qi "^x-robots-tag: noindex" headers.txt
+          test "$(docker compose exec -T api id -u)" != 0
+          test "$(docker compose exec -T web id -u)" != 0
+      - if: always()
+        run: docker compose logs && docker compose down -v

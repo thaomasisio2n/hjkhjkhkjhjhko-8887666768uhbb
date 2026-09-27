@@ -4,12 +4,13 @@
 > processors, no KYC/AML, no licensing, no game logic. It exists to
 > demonstrate — for an educational/YouTube walkthrough — how quickly a
 > modern "casino aggregator" style front end (login, lobby, wallet,
-> deposits, referrals) can be scaffolded. **Do not deploy this publicly,
-> connect it to real payments, or represent it as a licensed gambling
-> service.** Anyone doing that is responsible for the legal consequences
-> themselves — this repo provides none of the licensing, age-verification,
-> or compliance work that real-money gambling requires in every
-> jurisdiction.
+> deposits, referrals) can be scaffolded. **Never connect it to real
+> payments or represent it as a licensed gambling service.** Anyone doing
+> that is responsible for the legal consequences themselves — this repo
+> provides none of the licensing, age-verification, or compliance work that
+> real-money gambling requires in every jurisdiction. Showing it publicly
+> as a demo is fine as long as the disclaimers stay; follow
+> [SECURITY.md](SECURITY.md) when you do.
 
 ![NovaSpin demo lobby](docs/lobby.png)
 
@@ -68,9 +69,23 @@ play, account deletion, wallet/balance ledger with deposit limits,
 referral codes + rewards, profile/password updates, chat rooms with
 moderation, and a `/games` catalog serving placeholder metadata with a
 `launchPath` shaped for an iframe game client.
-Login, register, password change and referral lookups are rate-limited per
-IP, and the API refuses to start with the default JWT secret when
-`NODE_ENV=production`. Endpoints are listed in `apps/api/README.md`.
+Endpoints are listed in `apps/api/README.md`.
+
+### Built to be shown publicly
+
+A demo on the internet gets poked at, so it's hardened against takeover
+and abuse (details and the threat model in [SECURITY.md](SECURITY.md)):
+
+- The published demo logins are **shared accounts**: anyone can use them,
+  nobody can change their password, 2FA or profile, lock them with a break
+  or a limit, delete them, or see other visitors' sessions.
+- Rate limits per IP and per account, common passwords refused, HS256-only
+  expiring tokens, a production start-up check for the JWT secret.
+- Strict security headers and CSP on both apps, generic error bodies,
+  small body limits, capped fake balances, expiring chat.
+- Non-root, read-only, capability-free containers.
+- Kill switches (`DISABLE_REGISTRATION`, `DISABLE_CHAT`) and an operator
+  CLI to ban users, clear chat and sign everyone out.
 
 ## Running locally
 
@@ -99,8 +114,9 @@ camera:
 - The friends can log in too: `friend1@novaspin.test` … `friend3@novaspin.test`,
   same password.
 - The chat rooms start with a few neutral messages from them.
-- Re-running `npm start` (or the seed) clears any break in play and 2FA left
-  on the demo account, so it's always usable for a recording.
+- These logins are shared: their password, profile, 2FA, limits and breaks
+  can't be changed (register your own account to show those features), and
+  every `npm start` / container start puts them back to the state above.
 
 To show the referral flow live, copy the link from **Refer & Earn** (e.g.
 `http://localhost:5173/register?ref=DEMO0001`), open it in a private window
@@ -117,7 +133,13 @@ docker compose up --build
 Web on `http://localhost:8080`, API on `http://localhost:8787`, SQLite in
 a named volume (`api-data`). The API container migrates and seeds on every
 start. Without `JWT_SECRET` it generates a random one per start (you just
-sign in again after a restart); set `JWT_SECRET` to keep sessions.
+sign in again after a restart); set `JWT_SECRET` to keep sessions. Both
+containers run as non-root users on read-only filesystems. For a public
+host, see the checklist in [SECURITY.md](SECURITY.md#hosting-checklist).
+
+Upgrading from an older image whose volume belonged to root? The API says
+so on start; fix it once with
+`docker compose run --rm --user root api chown -R node:node /data`.
 
 ### Running the pieces separately
 
@@ -136,7 +158,11 @@ npm run test:e2e    # Playwright end-to-end suite
   against a throwaway SQLite DB migrated fresh per run: auth, profile,
   password change, rate limiting, referrals, wallet limits, games,
   sessions, two-factor auth (including the RFC 6238 test vectors), break
-  in play, account deletion, chat moderation and ghost mode.
+  in play, account deletion, chat moderation and ghost mode — plus the
+  hardening: security headers, body limits, forged/expired tokens, the
+  per-account throttle, `X-Forwarded-For` handling, shared-account
+  protection, bans (via the operator CLI), kill switches, the balance
+  cap and the production secret check.
 - **Web** (`apps/web/src/**/*.test.ts`) — i18n (plurals, fallbacks, and a
   check that every key used in the code exists in both languages),
   formatting, transaction notes, game art, categories, avatars, help
@@ -146,8 +172,11 @@ npm run test:e2e    # Playwright end-to-end suite
   Covers sign-in, referral sign-up, search, favourites, deposits and
   limits, CSV export, live referral notifications, settings, reality
   check, 2FA sign-in, sessions, break in play, account deletion, chat,
-  providers, Help Center and the Polish UI.
+  providers, Help Center, the Polish UI, the read-only shared demo
+  account and the common-password check.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, unit tests and
-builds, then the Playwright suite and a `docker compose build`, on pushes to
-`main` and on pull requests.
+builds, a production dependency audit and a gitleaks secret scan, then the
+Playwright suite and a Docker smoke test (the compose stack comes up
+healthy, serves the security headers and runs as non-root), on pushes to
+`main` and on pull requests. Dependabot proposes dependency updates weekly.
