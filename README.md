@@ -30,12 +30,21 @@ an iframe, e.g. `?gameid=...&mode=demo&token=...`):
 
 ## Running locally
 
+One command, from a fresh clone:
+
 ```bash
-npm install
-cp apps/api/.env.example apps/api/.env
-npm run build:api --workspace=apps/api -- prisma:generate # or see apps/api/README
-npm run dev:api
-npm run dev:web
+npm start
 ```
 
-See `apps/api/README.md` and `apps/web/README.md` for details.
+That installs dependencies for both apps, creates `apps/api/.env`, sets up
+the local SQLite database (migrate + seed 20 placeholder games), starts the
+API on `http://localhost:8787` and the web app on `http://localhost:5173`,
+and opens the web app in your browser. Ctrl+C stops both servers.
+
+Re-running `npm start` later is safe and fast (it skips `.env` creation if
+it already exists, and the database setup is idempotent).
+
+### Running the pieces separately
+
+If you'd rather run things by hand — see `apps/api/README.md` and
+`apps/web/README.md`.
