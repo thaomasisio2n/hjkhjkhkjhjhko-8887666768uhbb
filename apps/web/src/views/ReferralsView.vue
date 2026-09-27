@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { api } from "../lib/api";
-import { formatDate, formatUsd, initials, timeAgo } from "../lib/format";
+import { formatDate, formatUsd, timeAgo } from "../lib/format";
 import { PALETTES } from "../lib/gameArt";
 import type { IconName } from "../lib/icons";
 import { useToastStore } from "../stores/toast";
@@ -9,11 +9,12 @@ import { useUiStore } from "../stores/ui";
 import { t } from "../i18n";
 import GameEmblem from "../components/GameEmblem.vue";
 import Icon from "../components/Icon.vue";
+import UserAvatar from "../components/UserAvatar.vue";
 
 interface ReferralData {
   referralCode: string;
   referralLink: string;
-  invited: { id: string; displayName: string; createdAt: string }[];
+  invited: { id: string; displayName: string; avatar: string | null; createdAt: string }[];
   totalEarnedCents: number;
   bonusPerReferralCents: number;
   welcomeBonusCents: number;
@@ -230,7 +231,7 @@ const steps = computed<{ icon: IconName; title: string; text: string }[]>(() => 
               :class="i % 2 ? 'bg-ink-800' : 'bg-ink-700'"
             >
               <div class="flex min-w-0 items-center gap-3">
-                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-600 text-xs font-bold">{{ initials(friend.displayName) }}</span>
+                <UserAvatar :name="friend.displayName" :avatar="friend.avatar" :size="32" />
                 <div class="min-w-0">
                   <p class="truncate font-semibold">{{ friend.displayName }}</p>
                   <p class="text-xs text-ink-400 sm:hidden">{{ timeAgo(friend.createdAt) }}</p>

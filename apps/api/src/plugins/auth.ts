@@ -1,6 +1,7 @@
 import fp from "fastify-plugin";
 import jwt from "@fastify/jwt";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { JWT_SECRET } from "../config.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -17,7 +18,7 @@ declare module "@fastify/jwt" {
 
 export default fp(async (app: FastifyInstance) => {
   app.register(jwt, {
-    secret: process.env.JWT_SECRET ?? "change-me-in-real-life-this-is-a-demo",
+    secret: JWT_SECRET,
   });
 
   app.decorate("authenticate", async (req: FastifyRequest, reply: FastifyReply) => {

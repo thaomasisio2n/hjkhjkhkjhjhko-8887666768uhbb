@@ -4,7 +4,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import { useWalletStore } from "../../stores/wallet";
 import { useUiStore } from "../../stores/ui";
-import { initials } from "../../lib/format";
+import UserAvatar from "../UserAvatar.vue";
 import CoinIcon from "../CoinIcon.vue";
 import Icon from "../Icon.vue";
 import Logo from "../Logo.vue";
@@ -75,9 +75,7 @@ function logout() {
             :aria-expanded="menuOpen"
             @click="menuOpen = !menuOpen"
           >
-            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent to-emerald-600 text-xs font-extrabold text-accent-ink">
-              {{ initials(auth.user?.displayName) }}
-            </span>
+            <UserAvatar :name="auth.user?.displayName" :avatar="auth.user?.avatar" :size="32" />
             <Icon name="chevron-down" :size="14" class="hidden text-ink-300 transition sm:block" :class="{ 'rotate-180': menuOpen }" />
           </button>
 

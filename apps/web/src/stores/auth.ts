@@ -7,6 +7,7 @@ interface User {
   id: string;
   email: string;
   displayName: string;
+  avatar?: string | null;
   referralCode: string;
   balanceCents: number;
   createdAt?: string;

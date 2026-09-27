@@ -11,9 +11,9 @@ const DEMO_BALANCE_CENTS = 5_000_000; // $50,000 fake balance for a flashy demo
 // A few fake friends invited by the demo account, so the referral dashboard
 // has something to show on camera. They can log in with the demo password.
 const DEMO_FRIENDS = [
-  { email: "friend1@novaspin.test", displayName: "LuckyLuke", referralCode: "FRIEND01", daysAgo: 12 },
-  { email: "friend2@novaspin.test", displayName: "Marta W.", referralCode: "FRIEND02", daysAgo: 5 },
-  { email: "friend3@novaspin.test", displayName: "Kacper99", referralCode: "FRIEND03", daysAgo: 1 },
+  { email: "friend1@novaspin.test", displayName: "LuckyLuke", referralCode: "FRIEND01", avatar: "cherry-jungle", daysAgo: 12 },
+  { email: "friend2@novaspin.test", displayName: "Marta W.", referralCode: "FRIEND02", avatar: "blossom-sakura", daysAgo: 5 },
+  { email: "friend3@novaspin.test", displayName: "Kacper99", referralCode: "FRIEND03", avatar: "bolt-royal", daysAgo: 1 },
 ];
 
 // Fictional studios and titles only — no real providers or games.
@@ -135,6 +135,7 @@ async function main() {
           passwordHash: await argon2.hash(DEMO_PASSWORD),
           displayName: friend.displayName,
           referralCode: friend.referralCode,
+          avatar: friend.avatar,
           referredById: demo.id,
           balanceCents: WELCOME_BONUS_CENTS,
           createdAt: joinedAt,

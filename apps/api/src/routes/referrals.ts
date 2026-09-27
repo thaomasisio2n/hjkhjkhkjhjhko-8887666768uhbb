@@ -7,7 +7,7 @@ export default async function referralRoutes(app: FastifyInstance) {
       where: { id: req.user.sub },
       include: {
         referrals: {
-          select: { id: true, displayName: true, createdAt: true },
+          select: { id: true, displayName: true, avatar: true, createdAt: true },
           orderBy: { createdAt: "desc" },
         },
       },
@@ -29,7 +29,8 @@ export default async function referralRoutes(app: FastifyInstance) {
   });
 
   // Public: lets the register page confirm a code and say who sent the invite.
-  app.get("/referrals/lookup/:code", async (req, reply) => {
+  const lookupLimit = { config: { rateLimit: { max: app.limits.lookup, timeWindow: "1 minute" } } };
+  app.get("/referrals/lookup/:code", lookupLimit, async (req, reply) => {
     const code = normalizeReferralCode((req.params as { code: string }).code);
     const referrer = code
       ? await app.prisma.user.findUnique({ where: { referralCode: code }, select: { displayName: true } })

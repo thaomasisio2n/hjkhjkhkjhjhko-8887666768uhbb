@@ -6,11 +6,13 @@ import { useToastStore } from "../stores/toast";
 import { useUiStore } from "../stores/ui";
 import { useWalletStore } from "../stores/wallet";
 import { api } from "../lib/api";
-import { apiErrorMessage, formatUsd, initials } from "../lib/format";
+import { apiErrorMessage, formatUsd } from "../lib/format";
+import { AVATARS } from "../lib/avatars";
 import { formatDuration, sessionStart } from "../lib/session";
 import type { IconName } from "../lib/icons";
 import Icon from "../components/Icon.vue";
 import LanguageSwitch from "../components/LanguageSwitch.vue";
+import UserAvatar from "../components/UserAvatar.vue";
 import { intlLocale, t } from "../i18n";
 
 const auth = useAuthStore();
@@ -79,6 +81,22 @@ async function saveProfile() {
     profileError.value = apiErrorMessage(e, t("settings.profileFailed"));
   } finally {
     savingProfile.value = false;
+  }
+}
+
+// Avatar: saved as soon as it's picked.
+const savingAvatar = ref(false);
+async function saveAvatar(avatar: string | null) {
+  if (savingAvatar.value || (auth.user?.avatar ?? null) === avatar) return;
+  savingAvatar.value = true;
+  try {
+    const { data } = await api.patch("/auth/me", { avatar });
+    auth.user = data;
+    toast.push(t("toasts.avatarUpdated"), "success", "user");
+  } catch (e) {
+    toast.push(apiErrorMessage(e, t("settings.profileFailed")), "error");
+  } finally {
+    savingAvatar.value = false;
   }
 }
 
@@ -162,9 +180,7 @@ function logout() {
 
     <!-- Profile -->
     <section class="panel flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
-      <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-emerald-600 text-xl font-extrabold text-accent-ink">
-        {{ initials(auth.user?.displayName) }}
-      </span>
+      <UserAvatar :name="auth.user?.displayName" :avatar="auth.user?.avatar" :size="64" />
       <div class="min-w-0 flex-1">
         <p class="truncate text-lg font-extrabold">{{ auth.user?.displayName ?? t("topbar.player") }}</p>
         <p class="truncate text-sm text-ink-300">{{ auth.user?.email }}</p>
@@ -216,6 +232,39 @@ function logout() {
       <section>
         <h2 class="mb-3 text-lg font-bold">{{ t("settings.profile") }}</h2>
         <form class="panel space-y-4 p-5" @submit.prevent="saveProfile">
+          <div>
+            <span class="field-label">{{ t("settings.avatar") }}</span>
+            <div class="grid grid-cols-7 gap-2" role="radiogroup" :aria-label="t('settings.avatar')">
+              <button
+                type="button"
+                role="radio"
+                :aria-checked="!auth.user?.avatar"
+                :aria-label="t('settings.avatarInitials')"
+                :title="t('settings.avatarInitials')"
+                class="flex aspect-square items-center justify-center rounded-full transition hover:scale-105"
+                :class="!auth.user?.avatar ? 'ring-2 ring-accent ring-offset-2 ring-offset-ink-700' : 'opacity-70 hover:opacity-100'"
+                :disabled="savingAvatar"
+                @click="saveAvatar(null)"
+              >
+                <UserAvatar :name="auth.user?.displayName" :size="40" />
+              </button>
+              <button
+                v-for="a in AVATARS"
+                :key="a.key"
+                type="button"
+                role="radio"
+                :aria-checked="auth.user?.avatar === a.key"
+                :aria-label="a.key"
+                class="flex aspect-square items-center justify-center rounded-full transition hover:scale-105"
+                :class="auth.user?.avatar === a.key ? 'ring-2 ring-accent ring-offset-2 ring-offset-ink-700' : 'opacity-70 hover:opacity-100'"
+                :disabled="savingAvatar"
+                @click="saveAvatar(a.key)"
+              >
+                <UserAvatar :avatar="a.key" :size="40" />
+              </button>
+            </div>
+            <p class="mt-1.5 text-xs text-ink-400">{{ t("settings.avatarHint") }}</p>
+          </div>
           <div>
             <label for="set-name" class="field-label">{{ t("auth.username") }}</label>
             <input id="set-name" v-model="displayName" type="text" minlength="2" maxlength="40" required autocomplete="nickname" class="field" />

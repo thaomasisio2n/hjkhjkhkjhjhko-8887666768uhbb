@@ -16,9 +16,13 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
-const profileSchema = z.object({
-  displayName: z.string().trim().min(2).max(40),
-});
+const profileSchema = z
+  .object({
+    displayName: z.string().trim().min(2).max(40).optional(),
+    // Preset keys are "<emblem>-<palette>"; the web app owns the list.
+    avatar: z.string().regex(/^[a-z]+-[a-z]+$/).max(32).nullable().optional(),
+  })
+  .refine((d) => d.displayName !== undefined || d.avatar !== undefined, { message: "Nothing to update" });
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1),
@@ -29,6 +33,7 @@ type UserRow = {
   id: string;
   email: string;
   displayName: string;
+  avatar: string | null;
   referralCode: string;
   balanceCents: number;
   createdAt: Date;
@@ -40,6 +45,7 @@ function publicUser(user: UserRow) {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
+    avatar: user.avatar,
     referralCode: user.referralCode,
     balanceCents: user.balanceCents,
     createdAt: user.createdAt,
@@ -47,7 +53,9 @@ function publicUser(user: UserRow) {
 }
 
 export default async function authRoutes(app: FastifyInstance) {
-  app.post("/auth/register", async (req, reply) => {
+  const perMinute = (max: number) => ({ config: { rateLimit: { max, timeWindow: "1 minute" } } });
+
+  app.post("/auth/register", perMinute(app.limits.register), async (req, reply) => {
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
@@ -114,7 +122,7 @@ export default async function authRoutes(app: FastifyInstance) {
     return reply.code(201).send({ token, user: publicUser(user) });
   });
 
-  app.post("/auth/login", async (req, reply) => {
+  app.post("/auth/login", perMinute(app.limits.login), async (req, reply) => {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
@@ -143,12 +151,12 @@ export default async function authRoutes(app: FastifyInstance) {
     }
     const user = await app.prisma.user.update({
       where: { id: req.user.sub },
-      data: { displayName: parsed.data.displayName },
+      data: { displayName: parsed.data.displayName, avatar: parsed.data.avatar },
     });
     return publicUser(user);
   });
 
-  app.post("/auth/password", { preHandler: [app.authenticate] }, async (req, reply) => {
+  app.post("/auth/password", { preHandler: [app.authenticate], ...perMinute(app.limits.password) }, async (req, reply) => {
     const parsed = passwordSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });

@@ -1,5 +1,5 @@
 import type { IconName } from "./icons";
-import { t } from "../i18n";
+import { t, te } from "../i18n";
 
 export interface CategoryMeta {
   name: string;
@@ -24,8 +24,7 @@ export function slugify(value: string) {
 export function categoryLabel(name: string) {
   const meta = categoryMeta(name);
   const key = `categories.${meta.slug}`;
-  const label = t(key);
-  return label === key ? name : label;
+  return te(key) ? t(key) : name;
 }
 
 export function categoryMeta(name: string): CategoryMeta {

@@ -1,26 +1,13 @@
-import Fastify from "fastify";
-import cors from "@fastify/cors";
-import prismaPlugin from "./plugins/prisma.js";
-import authPlugin from "./plugins/auth.js";
-import authRoutes from "./routes/auth.js";
-import walletRoutes from "./routes/wallet.js";
-import referralRoutes from "./routes/referrals.js";
-import gameRoutes from "./routes/games.js";
+import { buildApp } from "./app.js";
+import { DEFAULT_JWT_SECRET, JWT_SECRET } from "./config.js";
 
-const app = Fastify({ logger: true });
+// Tokens signed with the public default secret can be forged by anyone.
+if (process.env.NODE_ENV === "production" && JWT_SECRET === DEFAULT_JWT_SECRET) {
+  console.error("Refusing to start: set JWT_SECRET to a long random value when NODE_ENV=production.");
+  process.exit(1);
+}
 
-await app.register(cors, {
-  origin: process.env.WEB_ORIGIN ?? "http://localhost:5173",
-});
-await app.register(prismaPlugin);
-await app.register(authPlugin);
-
-await app.register(authRoutes);
-await app.register(walletRoutes);
-await app.register(referralRoutes);
-await app.register(gameRoutes);
-
-app.get("/health", async () => ({ ok: true, demo: true }));
+const app = await buildApp();
 
 const port = Number(process.env.PORT ?? 8787);
 app.listen({ port, host: "0.0.0.0" }).catch((err) => {

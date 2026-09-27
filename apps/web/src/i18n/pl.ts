@@ -296,6 +296,9 @@ const pl: Messages = {
     languageText: "Wybierz język interfejsu.",
     profile: "Profil",
     usernameHint: "Widoczna dla zaproszonych znajomych i na górnym pasku.",
+    avatar: "Avatar",
+    avatarHint: "Widoczny na górnym pasku i przy Twoim nicku u zaproszonych znajomych.",
+    avatarInitials: "Inicjały",
     saveChanges: "Zapisz zmiany",
     saving: "Zapisywanie…",
     profileFailed: "Nie udało się zapisać profilu.",
@@ -362,6 +365,7 @@ const pl: Messages = {
       other: "Wyeksportowano {count} transakcji",
     },
     profileUpdated: "Profil zaktualizowany",
+    avatarUpdated: "Avatar zmieniony",
     passwordChanged: "Hasło zmienione",
     recentCleared: "Wyczyszczono ostatnio grane",
     favouritesCleared: "Wyczyszczono ulubione",
@@ -385,6 +389,8 @@ const pl: Messages = {
     "Current password is incorrect": "Obecne hasło jest nieprawidłowe",
     "New password must be different from the current one": "Nowe hasło musi się różnić od obecnego",
     "Game not found": "Nie znaleziono gry",
+    "Referral code not found": "Nie znaleziono kodu polecającego",
+    "Too many attempts — try again in a minute.": "Zbyt wiele prób — spróbuj ponownie za minutę.",
   },
 };
 

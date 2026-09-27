@@ -24,15 +24,20 @@ function detect(): Locale {
   } catch {
     // storage unavailable
   }
-  return navigator.language?.toLowerCase().startsWith("pl") ? "pl" : "en";
+  const language = typeof navigator !== "undefined" ? navigator.language : "";
+  return language?.toLowerCase().startsWith("pl") ? "pl" : "en";
+}
+
+function syncHtmlLang(value: Locale) {
+  if (typeof document !== "undefined") document.documentElement.lang = value;
 }
 
 export const locale = ref<Locale>(detect());
-document.documentElement.lang = locale.value;
+syncHtmlLang(locale.value);
 
 export function setLocale(next: Locale) {
   locale.value = next;
-  document.documentElement.lang = next;
+  syncHtmlLang(next);
   try {
     localStorage.setItem(STORAGE_KEY, next);
   } catch {
@@ -63,6 +68,11 @@ function resolve(key: string) {
   const found = lookup(messages[locale.value], key) ?? lookup(messages.en, key);
   if (found === undefined && import.meta.env.DEV) console.warn(`[i18n] missing key: ${key}`);
   return found;
+}
+
+/** Whether a message exists (in the active locale or the English fallback). */
+export function te(key: string): boolean {
+  return (lookup(messages[locale.value], key) ?? lookup(messages.en, key)) !== undefined;
 }
 
 export function t(key: string, params?: Record<string, string | number>): string {
