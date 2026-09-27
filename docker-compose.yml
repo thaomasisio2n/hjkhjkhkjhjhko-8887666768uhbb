@@ -1,27 +1,50 @@
 # One-command demo: docker compose up --build
 # Web: http://localhost:8080 · API: http://localhost:8787
+#
+# Hosting it publicly? Read SECURITY.md first: set JWT_SECRET, WEB_ORIGIN,
+# VITE_API_URL and TRUST_PROXY for your domain and put TLS in front.
+
+# Both containers run as non-root users with no Linux capabilities and a
+# read-only root filesystem; only the database volume and /tmp are writable.
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: [/tmp]
+  restart: unless-stopped
+
 services:
   api:
+    <<: *hardening
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     environment:
       # Leave empty to get a random secret per start; set it to keep sessions.
       JWT_SECRET: ${JWT_SECRET:-}
-      WEB_ORIGIN: http://localhost:8080
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
+      # Set to the number of proxies in front of the API (e.g. 1) when hosted
+      # behind one; leave empty when clients connect to it directly.
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      # Kill switches: set to 1 and restart to pause sign-ups or chat.
+      DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-}
+      DISABLE_CHAT: ${DISABLE_CHAT:-}
+      # npm/npx/tsx caches go to the tmpfs; the root filesystem is read-only.
+      HOME: /tmp
     ports:
       - "8787:8787"
     volumes:
       - api-data:/data
 
   web:
+    <<: *hardening
     build:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        VITE_API_URL: http://localhost:8787
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8787}
     ports:
-      - "8080:80"
+      - "8080:8080"
     depends_on:
       api:
         condition: service_healthy

@@ -16,9 +16,16 @@ COPY apps/api apps/api
 WORKDIR /app/apps/api
 RUN npx prisma generate && npm run build
 
+# CHECKPOINT_DISABLE / PRISMA_HIDE_UPDATE_MESSAGE: no phoning home from the
+# Prisma CLI at start-up.
 ENV NODE_ENV=production \
     PORT=8787 \
-    DATABASE_URL=file:/data/novaspin.db
+    DATABASE_URL=file:/data/novaspin.db \
+    CHECKPOINT_DISABLE=1 \
+    PRISMA_HIDE_UPDATE_MESSAGE=1
+# Run as the image's unprivileged "node" user; only /data is writable to it.
+# (A new named volume copies this ownership on first use.)
+RUN mkdir -p /data && chown node:node /data
 VOLUME /data
 EXPOSE 8787
 
@@ -27,4 +34,5 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=20s \
 
 # (Not named docker-entrypoint.sh: the node base image already uses that name.)
 COPY --chmod=755 apps/api/docker-start.sh /usr/local/bin/novaspin-start
+USER node
 CMD ["novaspin-start"]
