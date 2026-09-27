@@ -1,0 +1,30 @@
+# One-command demo: docker compose up --build
+# Web: http://localhost:8080 · API: http://localhost:8787
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      # Leave empty to get a random secret per start; set it to keep sessions.
+      JWT_SECRET: ${JWT_SECRET:-}
+      WEB_ORIGIN: http://localhost:8080
+    ports:
+      - "8787:8787"
+    volumes:
+      - api-data:/data
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8787
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  api-data:

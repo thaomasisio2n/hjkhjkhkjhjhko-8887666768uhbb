@@ -17,33 +17,43 @@
 
 A monorepo mimicking the tech shape of typical iframe-based casino
 aggregator launchers (a lobby site that loads third-party game clients in
-an iframe, e.g. `?gameid=...&mode=demo&token=...`):
+an iframe, e.g. `?gameid=...&mode=demo&token=...`).
 
-- `apps/web` — Vue 3 + Vite + Pinia + Tailwind CSS, styled like a modern
-  crypto-casino lobby (dark navy theme, collapsible sidebar, balance +
-  wallet button in the top bar, mobile bottom nav). Login/register, a game
-  lobby with promo banners, search, category tabs and scrollable game rows,
-  favourites/recently played (stored in the browser), provider filter and
-  sorting in category grids, a search overlay (`/` or Ctrl+K), toast
-  notifications, a notification bell that polls the wallet (a friend
-  signing up with your link pops up live), a settings page (edit username,
-  change password, "streamer mode" that masks every balance on screen —
-  handy when recording), responsible-play tools (a daily deposit limit the
-  API enforces, and a "reality check" reminder showing session time and
-  deposits), wallet history filters with CSV export, a 404 page, an
-  animated launch splash on the game page, a full Polish/English UI
-  (auto-detected from the browser, switchable in the sidebar, Settings,
-  footer and on the auth screens — dictionaries in `apps/web/src/i18n`), a game page with the iframe slot left as a placeholder, a wallet page + a fake "crypto pay"
-  deposit modal that always instantly credits the balance (no blockchain,
-  no processor — it's a demo button), and a referral dashboard (code,
-  invited users, earned bonus). Game cover art is generated procedurally
-  from each title (SVG emblem + palette), so no third-party artwork ships
-  with the repo.
-- `apps/api` — Fastify + Prisma + SQLite. JWT auth, wallet/balance ledger,
-  referral codes + rewards, and a `/games` catalog endpoint serving
-  placeholder game metadata (title, provider, thumbnail placeholder, and a
-  `launchUrl` shape compatible with an iframe-embedded game client —
-  intentionally left for someone else to wire up to actual game builds).
+### `apps/web` — Vue 3 + Vite + Pinia + Tailwind CSS
+
+Styled like a modern crypto-casino lobby: dark navy theme, collapsible
+sidebar, balance + wallet button in the top bar, bottom nav on mobile.
+
+- **Lobby** — promo banners, category tabs, scrollable game rows, provider
+  filter and sorting, favourites and recently played (stored in the
+  browser), a search overlay (`/` or Ctrl+K).
+- **Game page** — animated launch splash, then the iframe slot left as a
+  placeholder (no game clients are wired up).
+- **Wallet** — fake "crypto pay" deposit modal that instantly credits the
+  balance (no blockchain, no processor), history with filters and CSV
+  export.
+- **Refer & Earn** — personal link/code, share buttons, invited friends and
+  earnings; the register page validates codes live and shows who invited
+  you.
+- **Notifications** — a bell that polls the wallet, so a friend signing up
+  with your link pops up live; toasts for actions.
+- **Settings** — username, avatar, password, streamer mode (masks every
+  balance on screen — handy when recording), language.
+- **Responsible play** — a daily deposit limit enforced by the API and a
+  "reality check" reminder with session time and deposits.
+- **Polish/English UI** — auto-detected from the browser, switchable in the
+  sidebar, Settings, footer and auth screens (`apps/web/src/i18n`).
+- Game cover art is generated from each title (SVG emblem + palette), so no
+  third-party artwork ships with the repo.
+
+### `apps/api` — Fastify + Prisma + SQLite
+
+JWT auth, wallet/balance ledger with deposit limits, referral codes +
+rewards, profile/password updates, and a `/games` catalog serving
+placeholder metadata with a `launchPath` shaped for an iframe game client.
+Login, register, password change and referral lookups are rate-limited per
+IP, and the API refuses to start with the default JWT secret when
+`NODE_ENV=production`. Endpoints are listed in `apps/api/README.md`.
 
 ## Running locally
 
@@ -78,7 +88,42 @@ and register: the form confirms who invited you, the new account gets the
 demo welcome bonus and the referrer's dashboard picks up the new friend.
 Referral links are built from `WEB_ORIGIN` in `apps/api/.env`.
 
+### Docker
+
+```bash
+docker compose up --build
+```
+
+Web on `http://localhost:8080`, API on `http://localhost:8787`, SQLite in
+a named volume (`api-data`). The API container migrates and seeds on every
+start. Without `JWT_SECRET` it generates a random one per start (you just
+sign in again after a restart); set `JWT_SECRET` to keep sessions.
+
 ### Running the pieces separately
 
 If you'd rather run things by hand — see `apps/api/README.md` and
 `apps/web/README.md`.
+
+## Tests
+
+```bash
+npm run typecheck   # API (incl. tests + seed) and web
+npm test            # Vitest: API integration tests + web unit tests
+npm run test:e2e    # Playwright end-to-end suite
+```
+
+- **API** (`apps/api/test`) — drives the Fastify app with `app.inject()`
+  against a throwaway SQLite DB migrated fresh per run: auth, profile,
+  password change, rate limiting, referrals, wallet limits, games.
+- **Web** (`apps/web/src/**/*.test.ts`) — i18n (plurals, fallbacks, and a
+  check that every key used in the code exists in both languages),
+  formatting, transaction notes, game art, categories, avatars.
+- **E2E** (`e2e/`) — starts its own API on :8788 with a freshly seeded DB
+  and a web dev server on :5174, so it runs fine next to `npm start`.
+  Covers sign-in, referral sign-up, search, favourites, deposits and
+  limits, CSV export, live referral notifications, settings, reality
+  check and the Polish UI.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, unit tests and
+builds, then the Playwright suite and a `docker compose build`, on pushes to
+`main` and on pull requests.
