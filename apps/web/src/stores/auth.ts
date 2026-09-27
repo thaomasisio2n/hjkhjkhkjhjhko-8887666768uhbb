@@ -10,6 +10,8 @@ interface User {
   avatar?: string | null;
   referralCode: string;
   balanceCents: number;
+  totpEnabled?: boolean;
+  ghostMode?: boolean;
   createdAt?: string;
 }
 
@@ -28,7 +30,7 @@ export const useAuthStore = defineStore("auth", {
       const { data } = await axios.post(`${API_URL}/auth/register`, payload);
       this.setSession(data.token, data.user);
     },
-    async login(payload: { email: string; password: string }) {
+    async login(payload: { email: string; password: string; code?: string }) {
       const { data } = await axios.post(`${API_URL}/auth/login`, payload);
       this.setSession(data.token, data.user);
     },
@@ -44,7 +46,12 @@ export const useAuthStore = defineStore("auth", {
       this.user = user;
       localStorage.setItem("demo_token", token);
     },
-    logout() {
+    /** `remote: false` when the server already ended the session (break, deletion). */
+    logout({ remote = true }: { remote?: boolean } = {}) {
+      // Best effort: revoke this session server-side so the token is dead too.
+      if (remote && this.token) {
+        axios.post(`${API_URL}/auth/logout`, null, { headers: { Authorization: `Bearer ${this.token}` } }).catch(() => {});
+      }
       this.token = null;
       this.user = null;
       localStorage.removeItem("demo_token");

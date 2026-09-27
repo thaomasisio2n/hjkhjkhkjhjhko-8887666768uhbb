@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useGamesStore, type Game } from "../stores/games";
 import { useUiStore } from "../stores/ui";
 import { categoryLabel, sortCategories } from "../lib/categories";
@@ -11,6 +11,7 @@ import type { IconName } from "../lib/icons";
 import GameCard from "../components/GameCard.vue";
 import GameEmblem from "../components/GameEmblem.vue";
 import GameRow from "../components/GameRow.vue";
+import ProviderCard from "../components/ProviderCard.vue";
 import Icon from "../components/Icon.vue";
 
 const games = useGamesStore();
@@ -98,11 +99,6 @@ const results = computed(() => {
     `${g.title} ${g.provider} ${g.category} ${categoryLabel(g.category)}`.toLowerCase().includes(q)
   );
 });
-
-function searchProvider(name: string) {
-  query.value = name;
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
 
 // Copy lives in the i18n dictionaries under promos.<id>.
 const promos: {
@@ -246,22 +242,16 @@ const promos: {
       />
 
       <section v-if="games.providers.length">
-        <h2 class="mb-3 flex items-center gap-2 text-base font-bold sm:text-lg">
-          <Icon name="layers" :size="18" class="text-ink-300" /> {{ t("lobby.providers") }}
-        </h2>
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 class="flex items-center gap-2 text-base font-bold sm:text-lg">
+            <Icon name="layers" :size="18" class="text-ink-300" /> {{ t("lobby.providers") }}
+          </h2>
+          <RouterLink :to="{ name: 'providers' }" class="rounded-md px-3 py-1.5 text-xs font-semibold text-ink-300 transition hover:bg-ink-700 hover:text-white">
+            {{ t("common.viewAll") }}
+          </RouterLink>
+        </div>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-          <button
-            v-for="p in games.providers"
-            :key="p.name"
-            type="button"
-            class="group flex h-24 flex-col items-center justify-center rounded-lg bg-ink-700 shadow-card transition hover:-translate-y-1 hover:bg-ink-600"
-            @click="searchProvider(p.name)"
-          >
-            <span class="text-lg font-black uppercase italic tracking-tight text-ink-300 transition group-hover:text-white">
-              {{ p.name }}
-            </span>
-            <span class="mt-1 text-xs font-semibold text-ink-400">{{ tc("lobby.gamesCount", p.count) }}</span>
-          </button>
+          <ProviderCard v-for="p in games.providers" :key="p.slug" v-bind="p" />
         </div>
       </section>
     </template>

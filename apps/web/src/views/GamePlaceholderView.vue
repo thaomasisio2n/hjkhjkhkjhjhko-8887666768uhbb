@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { api } from "../lib/api";
-import { categoryLabel, categoryMeta } from "../lib/categories";
+import { categoryLabel, categoryMeta, slugify } from "../lib/categories";
 import { t } from "../i18n";
 import { setTitle } from "../lib/title";
 import { useGamesStore, type Game } from "../stores/games";
@@ -162,7 +162,9 @@ function fullscreen() {
         <dl class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm sm:grid-cols-1">
           <div>
             <dt class="text-xs font-semibold uppercase tracking-wide text-ink-400">{{ t("game.provider") }}</dt>
-            <dd class="mt-0.5 font-bold">{{ game.provider }}</dd>
+            <dd class="mt-0.5 font-bold">
+              <RouterLink :to="{ name: 'provider', params: { slug: slugify(game.provider) } }" class="hover:underline">{{ game.provider }}</RouterLink>
+            </dd>
           </div>
           <div>
             <dt class="text-xs font-semibold uppercase tracking-wide text-ink-400">{{ t("game.mode") }}</dt>
@@ -177,7 +179,7 @@ function fullscreen() {
         :title="t('game.moreFrom', { provider: game.provider })"
         icon="layers"
         :games="moreFromProvider"
-        @view-all="router.push({ name: 'lobby', query: { q: game.provider } })"
+        @view-all="router.push({ name: 'provider', params: { slug: slugify(game.provider) } })"
       />
     </template>
   </div>

@@ -18,7 +18,7 @@ test("profile: rename and pick an avatar", async ({ page, request }) => {
 
 test("password change takes effect", async ({ page, request }) => {
   const user = await signInAsNewUser(page, request);
-  await page.goto("/settings");
+  await page.goto("/settings?tab=security");
   await page.getByLabel("Current password").fill(user.password);
   await page.getByLabel("New password", { exact: true }).fill("newpassword456");
   await page.getByLabel("Confirm new password").fill("newpassword456");
@@ -43,7 +43,7 @@ test("streamer mode masks the balance", async ({ page, request }) => {
 test("reality check reminds after the chosen interval", async ({ page, request }) => {
   await signInAsNewUser(page, request);
   await page.clock.install();
-  await page.goto("/settings");
+  await page.goto("/settings?tab=responsible");
   await page.getByRole("radio", { name: "15 min" }).click();
   await page.clock.fastForward("15:15");
   await expect(page.getByRole("alertdialog")).toContainText("Reality check");

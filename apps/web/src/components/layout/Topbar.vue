@@ -65,6 +65,17 @@ function logout() {
           <kbd class="hidden rounded border border-ink-600 px-1.5 text-[11px] font-bold text-ink-400 lg:inline">/</kbd>
         </button>
 
+        <button
+          type="button"
+          class="relative flex h-10 w-10 items-center justify-center rounded-md transition hover:bg-ink-700 hover:text-white"
+          :class="ui.chatOpen ? 'text-white' : 'text-ink-300'"
+          :aria-label="ui.chatOpen ? t('chat.close') : t('chat.open')"
+          :aria-pressed="ui.chatOpen"
+          @click="ui.toggleChat()"
+        >
+          <Icon name="chat" :size="19" />
+        </button>
+
         <NotificationBell />
 
         <div class="relative">

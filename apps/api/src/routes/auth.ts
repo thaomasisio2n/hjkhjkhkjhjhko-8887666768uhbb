@@ -3,6 +3,8 @@ import argon2 from "argon2";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { REFERRAL_BONUS_CENTS, WELCOME_BONUS_CENTS, normalizeReferralCode } from "../config.js";
+import { revokeSessions, startSession } from "../lib/sessions.js";
+import { verifyTotp } from "../lib/totp.js";
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -14,6 +16,8 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+  // Only needed when the account has two-factor auth on.
+  code: z.string().trim().optional(),
 });
 
 const profileSchema = z
@@ -21,8 +25,9 @@ const profileSchema = z
     displayName: z.string().trim().min(2).max(40).optional(),
     // Preset keys are "<emblem>-<palette>"; the web app owns the list.
     avatar: z.string().regex(/^[a-z]+-[a-z]+$/).max(32).nullable().optional(),
+    ghostMode: z.boolean().optional(),
   })
-  .refine((d) => d.displayName !== undefined || d.avatar !== undefined, { message: "Nothing to update" });
+  .refine((d) => Object.values(d).some((v) => v !== undefined), { message: "Nothing to update" });
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1),
@@ -36,6 +41,8 @@ type UserRow = {
   avatar: string | null;
   referralCode: string;
   balanceCents: number;
+  totpEnabled: boolean;
+  ghostMode: boolean;
   createdAt: Date;
 };
 
@@ -48,6 +55,8 @@ function publicUser(user: UserRow) {
     avatar: user.avatar,
     referralCode: user.referralCode,
     balanceCents: user.balanceCents,
+    totpEnabled: user.totpEnabled,
+    ghostMode: user.ghostMode,
     createdAt: user.createdAt,
   };
 }
@@ -118,7 +127,7 @@ export default async function authRoutes(app: FastifyInstance) {
       return created;
     });
 
-    const token = app.jwt.sign({ sub: user.id });
+    const token = await startSession(app, user.id, req);
     return reply.code(201).send({ token, user: publicUser(user) });
   });
 
@@ -127,14 +136,25 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
-    const { email, password } = parsed.data;
+    const { email, password, code } = parsed.data;
 
     const user = await app.prisma.user.findUnique({ where: { email } });
     if (!user || !(await argon2.verify(user.passwordHash, password))) {
       return reply.code(401).send({ error: "Invalid credentials" });
     }
 
-    const token = app.jwt.sign({ sub: user.id });
+    // Checked only after the password, so neither leaks to someone guessing emails.
+    if (user.breakUntil && user.breakUntil > new Date()) {
+      return reply.code(403).send({ error: "On a break", code: "ON_BREAK", until: user.breakUntil });
+    }
+    if (user.totpEnabled && user.totpSecret) {
+      if (!code) return reply.code(401).send({ error: "Two-factor code required", code: "TOTP_REQUIRED" });
+      if (!verifyTotp(user.totpSecret, code)) {
+        return reply.code(401).send({ error: "Invalid two-factor code", code: "TOTP_INVALID" });
+      }
+    }
+
+    const token = await startSession(app, user.id, req);
     return reply.send({ token, user: publicUser(user) });
   });
 
@@ -151,7 +171,7 @@ export default async function authRoutes(app: FastifyInstance) {
     }
     const user = await app.prisma.user.update({
       where: { id: req.user.sub },
-      data: { displayName: parsed.data.displayName, avatar: parsed.data.avatar },
+      data: parsed.data,
     });
     return publicUser(user);
   });
@@ -175,6 +195,8 @@ export default async function authRoutes(app: FastifyInstance) {
       where: { id: user.id },
       data: { passwordHash: await argon2.hash(newPassword) },
     });
-    return { ok: true };
+    // A new password signs out every other device.
+    const signedOut = await revokeSessions(app, user.id, req.user.sid);
+    return { ok: true, signedOut };
   });
 }

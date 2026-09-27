@@ -8,6 +8,7 @@ import MobileNav from "./components/layout/MobileNav.vue";
 import Sidebar from "./components/layout/Sidebar.vue";
 import SiteFooter from "./components/layout/SiteFooter.vue";
 import Topbar from "./components/layout/Topbar.vue";
+import ChatPanel from "./components/ChatPanel.vue";
 import RealityCheck from "./components/RealityCheck.vue";
 import SearchOverlay from "./components/SearchOverlay.vue";
 import ToastHost from "./components/ToastHost.vue";
@@ -19,8 +20,9 @@ const route = useRoute();
 const auth = useAuthStore();
 const ui = useUiStore();
 
-// Auth screens (and the 404) render full-bleed; everything else gets the casino shell.
-const bare = computed(() => !route.meta.requiresAuth);
+// Auth screens (and the 404) render full-bleed; everything else gets the casino
+// shell. Public pages (Help Center) get the shell only when signed in.
+const bare = computed(() => !route.meta.requiresAuth && !(route.meta.public && auth.isAuthenticated));
 
 // "/" or Ctrl/Cmd+K opens search, unless the user is typing somewhere.
 function onKey(e: KeyboardEvent) {
@@ -62,6 +64,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
       </main>
       <SiteFooter class="pb-16 lg:pb-0" />
     </div>
+    <ChatPanel v-if="ui.chatOpen" />
     <MobileNav />
     <WalletModal v-if="ui.walletOpen" />
     <SearchOverlay v-if="ui.searchOpen" />

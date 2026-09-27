@@ -39,11 +39,21 @@ const groups = computed<NavItem[][]>(() => {
       tabItem(t("nav.favourites"), "heart", "favourites", ui.favourites.length || undefined),
       tabItem(t("nav.recent"), "history", "recent"),
     ],
-    [tabItem(t("nav.lobby"), "lobby", "lobby"), ...categories.map((c) => tabItem(categoryLabel(c.name), c.icon, c.slug))],
+    [
+      tabItem(t("nav.lobby"), "lobby", "lobby"),
+      ...categories.map((c) => tabItem(categoryLabel(c.name), c.icon, c.slug)),
+      {
+        label: t("nav.providers"),
+        icon: "layers",
+        to: { name: "providers" },
+        active: route.name === "providers" || route.name === "provider",
+      },
+    ],
     [
       { label: t("nav.wallet"), icon: "wallet", to: { name: "wallet" }, active: route.name === "wallet" },
       { label: t("nav.refer"), icon: "users", to: { name: "referrals" }, active: route.name === "referrals" },
       { label: t("nav.settings"), icon: "settings", to: { name: "settings" }, active: route.name === "settings" },
+      { label: t("nav.help"), icon: "info", to: { name: "help" }, active: route.name === "help" },
     ],
   ];
 });

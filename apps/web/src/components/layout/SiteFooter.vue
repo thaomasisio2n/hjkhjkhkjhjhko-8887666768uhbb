@@ -20,6 +20,7 @@ const year = new Date().getFullYear();
             <li v-for="c in KNOWN_CATEGORIES" :key="c.slug">
               <RouterLink :to="{ name: 'lobby', query: { tab: c.slug } }" class="transition hover:text-white">{{ categoryLabel(c.name) }}</RouterLink>
             </li>
+            <li><RouterLink :to="{ name: 'providers' }" class="transition hover:text-white">{{ t("nav.providers") }}</RouterLink></li>
           </ul>
         </div>
         <div>
@@ -30,6 +31,7 @@ const year = new Date().getFullYear();
             <li><RouterLink :to="{ name: 'lobby', query: { tab: 'favourites' } }" class="transition hover:text-white">{{ t("nav.favourites") }}</RouterLink></li>
             <li><RouterLink :to="{ name: 'lobby', query: { tab: 'recent' } }" class="transition hover:text-white">{{ t("nav.recentlyPlayed") }}</RouterLink></li>
             <li><RouterLink :to="{ name: 'settings' }" class="transition hover:text-white">{{ t("nav.settings") }}</RouterLink></li>
+            <li><RouterLink :to="{ name: 'help' }" class="transition hover:text-white">{{ t("nav.help") }}</RouterLink></li>
           </ul>
         </div>
         <div class="col-span-2 sm:col-span-1">

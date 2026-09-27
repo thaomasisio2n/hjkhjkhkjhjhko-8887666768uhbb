@@ -22,7 +22,42 @@ model User {
   transactions  Transaction[]
   // Responsible-play: optional cap on demo deposits in any rolling 24h window.
   depositLimitCents Int?
+  // Break in play / self-exclusion: sign-in is refused until this moment.
+  breakUntil    DateTime?
+  // TOTP two-factor auth. The secret is stored while setup is pending, and
+  // only counts once totpEnabled is true.
+  totpSecret    String?
+  totpEnabled   Boolean  @default(false)
+  // Hides the player's name and avatar from others in chat.
+  ghostMode     Boolean  @default(false)
+  sessions      Session[]
+  chatMessages  ChatMessage[]
   createdAt     DateTime @default(now())
+}
+
+// One row per sign-in; JWTs carry the session id so they can be revoked.
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  @@index([userId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  room      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([room, createdAt])
 }
 
 enum TransactionType {

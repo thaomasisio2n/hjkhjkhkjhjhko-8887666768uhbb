@@ -35,6 +35,7 @@ export const useUiStore = defineStore("ui", {
     notificationsSeenAt: load<number>("ns_notifications_seen", 0),
     // Reality-check reminder interval in minutes; 0 = off.
     realityCheckMinutes: load<number>("ns_reality_check", 0),
+    chatOpen: load("ns_chat_open", false),
   }),
   getters: {
     isFavourite: (state) => (slug: string) => state.favourites.includes(slug),
@@ -79,6 +80,11 @@ export const useUiStore = defineStore("ui", {
     clearSearches() {
       this.recentSearches = [];
       save("ns_recent_searches", this.recentSearches);
+    },
+    toggleChat(open?: boolean) {
+      this.chatOpen = open ?? !this.chatOpen;
+      this.mobileNavOpen = false;
+      save("ns_chat_open", this.chatOpen);
     },
     setRealityCheck(minutes: number) {
       this.realityCheckMinutes = minutes;

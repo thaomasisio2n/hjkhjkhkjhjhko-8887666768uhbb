@@ -166,6 +166,46 @@ async function main() {
     invited++;
   }
   console.log(invited ? `Seeded ${invited} demo referrals for the demo account.` : "Demo referrals already exist.");
+
+  // The shared demo login must always be usable for a recording: clear any
+  // break in play or two-factor setup someone left on it.
+  await prisma.user.update({
+    where: { id: demo.id },
+    data: { breakUntil: null, totpEnabled: false, totpSecret: null },
+  });
+
+  await seedChat();
+}
+
+// A few neutral opening messages so the chat rooms aren't empty on camera.
+const CHAT_SEED: Record<string, [email: string, body: string, minutesAgo: number][]> = {
+  en: [
+    [DEMO_EMAIL, "Welcome to the NovaSpin demo chat! Be nice, and remember nothing here is real money.", 42],
+    ["friend1@novaspin.test", "hey all 👋 the cover art on Sakura Fortune is really nice", 31],
+    ["friend2@novaspin.test", "the Polish translation is great btw", 18],
+    ["friend3@novaspin.test", "anyone else testing the streamer mode toggle? handy for recording", 6],
+  ],
+  pl: [
+    ["friend3@novaspin.test", "siema! ktoś z Polski? 🙂", 25],
+    ["friend2@novaspin.test", "hej, fajnie że jest polski pokój", 20],
+    ["friend1@novaspin.test", "pamiętajcie, to tylko demo — żadnych prawdziwych pieniędzy", 9],
+  ],
+};
+
+async function seedChat() {
+  let created = 0;
+  for (const [room, messages] of Object.entries(CHAT_SEED)) {
+    if (await prisma.chatMessage.count({ where: { room } })) continue;
+    for (const [email, body, minutesAgo] of messages) {
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) continue;
+      await prisma.chatMessage.create({
+        data: { room, userId: user.id, body, createdAt: new Date(Date.now() - minutesAgo * 60_000) },
+      });
+      created++;
+    }
+  }
+  console.log(created ? `Seeded ${created} chat messages.` : "Chat rooms already have messages.");
 }
 
 main()

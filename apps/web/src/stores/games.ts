@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { api } from "../lib/api";
+import { slugify } from "../lib/categories";
 
 export interface Game {
   id: string;
@@ -21,9 +22,11 @@ export const useGamesStore = defineStore("games", {
   getters: {
     bySlug: (state) => (slug: string) => state.games.find((g) => g.slug === slug),
     providers: (state) => {
-      const counts = new Map<string, number>();
-      for (const g of state.games) counts.set(g.provider, (counts.get(g.provider) ?? 0) + 1);
-      return [...counts.entries()].map(([name, count]) => ({ name, count }));
+      const byName = new Map<string, Game[]>();
+      for (const g of state.games) byName.set(g.provider, [...(byName.get(g.provider) ?? []), g]);
+      return [...byName.entries()]
+        .map(([name, games]) => ({ name, slug: slugify(name), count: games.length, games }))
+        .sort((a, b) => a.name.localeCompare(b.name));
     },
   },
   actions: {

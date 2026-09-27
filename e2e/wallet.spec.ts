@@ -17,7 +17,7 @@ test("a demo deposit credits the balance", async ({ page }) => {
 
 test("daily deposit limit blocks larger deposits", async ({ page, request }) => {
   await signInAsNewUser(page, request);
-  await page.goto("/settings");
+  await page.goto("/settings?tab=responsible");
   await page.getByRole("button", { name: "$100", exact: true }).click();
   await expect(page.getByText("Daily deposit limit set to $100.00")).toBeVisible();
 

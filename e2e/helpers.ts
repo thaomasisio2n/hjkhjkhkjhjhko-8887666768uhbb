@@ -18,8 +18,17 @@ export async function signInAsNewUser(page: Page, request: APIRequestContext, di
   const res = await request.post(`${API}/auth/register`, { data: { email, password: "password123", displayName } });
   expect(res.ok()).toBeTruthy();
   const { token } = await res.json();
-  await page.addInitScript((t) => localStorage.setItem("demo_token", t), token);
+  // Set once (not via an init script) so a later logout really signs out.
+  await page.goto("/login");
+  await page.evaluate((t) => localStorage.setItem("demo_token", t), token);
   return { email, password: "password123", token };
+}
+
+export async function signInThroughForm(page: Page, email: string, password: string) {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
 /** Parses the top-bar balance, e.g. "$50,000.00" → 5000000 cents. */

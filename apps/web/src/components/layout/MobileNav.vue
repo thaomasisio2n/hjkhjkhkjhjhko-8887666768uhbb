@@ -16,18 +16,12 @@ const items = computed<{ id: string; label: string; icon: IconName; active: bool
     id: "casino",
     label: t("nav.casino"),
     icon: "cherry",
-    active: route.name === "lobby" && !ui.mobileNavOpen && !ui.searchOpen,
+    active: route.name === "lobby" && !ui.mobileNavOpen && !ui.searchOpen && !ui.chatOpen,
     action: () => router.push({ name: "lobby" }),
   },
   { id: "search", label: t("nav.search"), icon: "search", active: ui.searchOpen, action: () => ui.openSearch() },
   { id: "wallet", label: t("nav.wallet"), icon: "wallet", active: ui.walletOpen, action: () => ui.openWallet() },
-  {
-    id: "refer",
-    label: t("nav.referShort"),
-    icon: "users",
-    active: route.name === "referrals" && !ui.mobileNavOpen && !ui.searchOpen,
-    action: () => router.push({ name: "referrals" }),
-  },
+  { id: "chat", label: t("chat.title"), icon: "chat", active: ui.chatOpen, action: () => ui.toggleChat() },
 ]);
 </script>
 

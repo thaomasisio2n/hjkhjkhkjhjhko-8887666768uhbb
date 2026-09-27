@@ -37,10 +37,24 @@ sidebar, balance + wallet button in the top bar, bottom nav on mobile.
   you.
 - **Notifications** — a bell that polls the wallet, so a friend signing up
   with your link pops up live; toasts for actions.
-- **Settings** — username, avatar, password, streamer mode (masks every
-  balance on screen — handy when recording), language.
-- **Responsible play** — a daily deposit limit enforced by the API and a
-  "reality check" reminder with session time and deposits.
+- **Chat** — right-hand panel (full screen on mobile) with English and
+  Polish rooms, chat rules, and server-side moderation (no shouting, no
+  link shorteners, no repeats, rate-limited).
+- **Providers** — a providers page and one page per studio with its games.
+- **Help Center** — searchable FAQ in both languages, reachable signed in or
+  out.
+- **Settings**, in tabs:
+  - *General* — avatar, username, streamer mode (masks every balance on
+    screen — handy when recording), compact sidebar, language.
+  - *Security* — password change (signs out other devices), two-factor
+    authentication with any TOTP app (QR code or setup key), active
+    sessions with "sign out" / "sign out all other devices".
+  - *Responsible play* — a daily deposit limit enforced by the API, a
+    "reality check" reminder with session time and deposits, and "take a
+    break" (1 hour to 30 days: signed out everywhere, sign-in refused until
+    it ends).
+  - *Privacy* — ghost mode (hidden name in chat), clearing browser data,
+    account deletion.
 - **Polish/English UI** — auto-detected from the browser, switchable in the
   sidebar, Settings, footer and auth screens (`apps/web/src/i18n`).
 - Game cover art is generated from each title (SVG emblem + palette), so no
@@ -48,9 +62,12 @@ sidebar, balance + wallet button in the top bar, bottom nav on mobile.
 
 ### `apps/api` — Fastify + Prisma + SQLite
 
-JWT auth, wallet/balance ledger with deposit limits, referral codes +
-rewards, profile/password updates, and a `/games` catalog serving
-placeholder metadata with a `launchPath` shaped for an iframe game client.
+JWT auth with revocable sessions (every token is bound to a session row),
+TOTP two-factor auth (RFC 6238, no third-party OTP library), break in
+play, account deletion, wallet/balance ledger with deposit limits,
+referral codes + rewards, profile/password updates, chat rooms with
+moderation, and a `/games` catalog serving placeholder metadata with a
+`launchPath` shaped for an iframe game client.
 Login, register, password change and referral lookups are rate-limited per
 IP, and the API refuses to start with the default JWT secret when
 `NODE_ENV=production`. Endpoints are listed in `apps/api/README.md`.
@@ -81,6 +98,9 @@ camera:
   referral bonuses each.
 - The friends can log in too: `friend1@novaspin.test` … `friend3@novaspin.test`,
   same password.
+- The chat rooms start with a few neutral messages from them.
+- Re-running `npm start` (or the seed) clears any break in play and 2FA left
+  on the demo account, so it's always usable for a recording.
 
 To show the referral flow live, copy the link from **Refer & Earn** (e.g.
 `http://localhost:5173/register?ref=DEMO0001`), open it in a private window
@@ -114,15 +134,19 @@ npm run test:e2e    # Playwright end-to-end suite
 
 - **API** (`apps/api/test`) — drives the Fastify app with `app.inject()`
   against a throwaway SQLite DB migrated fresh per run: auth, profile,
-  password change, rate limiting, referrals, wallet limits, games.
+  password change, rate limiting, referrals, wallet limits, games,
+  sessions, two-factor auth (including the RFC 6238 test vectors), break
+  in play, account deletion, chat moderation and ghost mode.
 - **Web** (`apps/web/src/**/*.test.ts`) — i18n (plurals, fallbacks, and a
   check that every key used in the code exists in both languages),
-  formatting, transaction notes, game art, categories, avatars.
+  formatting, transaction notes, game art, categories, avatars, help
+  content parity, user-agent labels.
 - **E2E** (`e2e/`) — starts its own API on :8788 with a freshly seeded DB
   and a web dev server on :5174, so it runs fine next to `npm start`.
   Covers sign-in, referral sign-up, search, favourites, deposits and
   limits, CSV export, live referral notifications, settings, reality
-  check and the Polish UI.
+  check, 2FA sign-in, sessions, break in play, account deletion, chat,
+  providers, Help Center and the Polish UI.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, unit tests and
 builds, then the Playwright suite and a `docker compose build`, on pushes to

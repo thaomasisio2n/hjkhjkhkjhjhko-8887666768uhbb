@@ -13,15 +13,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// A stale token (e.g. after the demo database was reset) sends the user back
-// to the login screen instead of leaving the UI half-broken.
+// A revoked/stale token (other device signed it out, demo DB reset) or a
+// break in play sends the user back to the login screen instead of leaving
+// the UI half-broken.
 api.interceptors.response.use(undefined, (error) => {
-  if (error?.response?.status === 401) {
-    const auth = useAuthStore();
-    if (auth.token) {
-      auth.logout();
-      window.location.assign("/login");
-    }
+  const status = error?.response?.status;
+  const body = error?.response?.data;
+  const auth = useAuthStore();
+  if (status === 401 && auth.token) {
+    auth.logout({ remote: false });
+    window.location.assign("/login");
+  } else if (status === 403 && body?.code === "ON_BREAK" && auth.token) {
+    auth.logout({ remote: false });
+    window.location.assign(`/login?break=${encodeURIComponent(body.until)}`);
   }
   return Promise.reject(error);
 });

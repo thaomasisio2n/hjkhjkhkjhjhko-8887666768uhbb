@@ -14,6 +14,7 @@ export const RATE_LIMITS = {
   register: 10 * scale,
   password: 10 * scale,
   lookup: 120 * scale,
+  chat: 12 * scale,
 };
 export type RateLimits = typeof RATE_LIMITS;
 

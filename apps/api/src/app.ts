@@ -7,6 +7,8 @@ import authRoutes from "./routes/auth.js";
 import walletRoutes from "./routes/wallet.js";
 import referralRoutes from "./routes/referrals.js";
 import gameRoutes from "./routes/games.js";
+import securityRoutes from "./routes/security.js";
+import chatRoutes from "./routes/chat.js";
 import { RATE_LIMITS, WEB_ORIGIN, type RateLimits } from "./config.js";
 
 declare module "fastify" {
@@ -43,6 +45,8 @@ export async function buildApp(opts: AppOptions = {}) {
   await app.register(walletRoutes);
   await app.register(referralRoutes);
   await app.register(gameRoutes);
+  await app.register(securityRoutes);
+  await app.register(chatRoutes);
 
   app.get("/health", async () => ({ ok: true, demo: true }));
 

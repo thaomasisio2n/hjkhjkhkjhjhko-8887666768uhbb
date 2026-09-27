@@ -63,3 +63,11 @@ describe("dictionaries", () => {
     expect(missing).toEqual([]);
   });
 });
+
+describe("help center content", () => {
+  it("has the same collections and articles in both languages", async () => {
+    const { HELP } = await import("./help");
+    const shape = (l: "en" | "pl") => HELP[l].map((c) => `${c.id}:${c.articles.map((a) => a.id).join(",")}`);
+    expect(shape("pl")).toEqual(shape("en"));
+  });
+});

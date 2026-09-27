@@ -7,6 +7,8 @@ declare module "vue-router" {
   interface RouteMeta {
     requiresAuth?: boolean;
     guestOnly?: boolean;
+    /** Reachable signed in or out; gets the casino shell when signed in. */
+    public?: boolean;
     /** i18n key for the page title */
     title?: string;
   }
@@ -23,6 +25,9 @@ const router = createRouter({
     { path: "/play/:slug", name: "play", component: () => import("../views/GamePlaceholderView.vue"), meta: { requiresAuth: true } },
     { path: "/wallet", name: "wallet", component: () => import("../views/WalletView.vue"), meta: { requiresAuth: true, title: "titles.wallet" } },
     { path: "/referrals", name: "referrals", component: () => import("../views/ReferralsView.vue"), meta: { requiresAuth: true, title: "titles.refer" } },
+    { path: "/providers", name: "providers", component: () => import("../views/ProvidersView.vue"), meta: { requiresAuth: true, title: "titles.providers" } },
+    { path: "/providers/:slug", name: "provider", component: () => import("../views/ProviderView.vue"), meta: { requiresAuth: true } },
+    { path: "/help", name: "help", component: () => import("../views/HelpView.vue"), meta: { public: true, title: "titles.help" } },
     { path: "/settings", name: "settings", component: () => import("../views/SettingsView.vue"), meta: { requiresAuth: true, title: "titles.settings" } },
     { path: "/:pathMatch(.*)*", name: "not-found", component: () => import("../views/NotFoundView.vue"), meta: { title: "titles.notFound" } },
   ],
