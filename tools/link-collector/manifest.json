@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Link Collector",
+  "version": "1.0.0",
+  "description": "Zbiera na żywo linki pasujące do wzorca (np. podpisane obrazki CloudFront) i kopiuje je jako JSON.",
+  "permissions": ["storage", "unlimitedStorage", "webRequest"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_title": "Link Collector",
+    "default_popup": "popup.html"
+  }
+}

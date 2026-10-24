@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <title>Link Collector</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <strong>Link Collector</strong>
+    <span id="count" class="count">0</span>
+    <label class="toggle"><input type="checkbox" id="enabled"> zbieraj</label>
+  </header>
+
+  <button id="copyJson" class="primary">Kopiuj JSON</button>
+  <div class="row">
+    <button id="copyUrls">Kopiuj same URL-e</button>
+    <button id="download">Pobierz .json</button>
+    <button id="clear" class="danger">Wyczyść</button>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <details>
+    <summary>Wzorzec (regex)</summary>
+    <div class="row">
+      <input id="pattern" type="text" spellcheck="false">
+      <button id="savePattern">Zapisz</button>
+    </div>
+  </details>
+
+  <ol id="list" class="list" reversed></ol>
+
+  <script src="popup.js"></script>
+</body>
+</html>
