@@ -2,7 +2,7 @@
 // and from content scripts (DOM scan), dedupes them and keeps them in
 // chrome.storage.local so they survive browser restarts.
 
-const DEFAULT_PATTERN = 'images-ssl\\.gotestsite\\.com/u/';
+const DEFAULT_PATTERN = 'images-ssl\\.gotest(site)?\\.com/u/';
 const SAVE_DELAY_MS = 300;
 
 let ready = null;

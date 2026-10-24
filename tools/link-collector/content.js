@@ -67,7 +67,7 @@
     attributeFilter: ['src', 'srcset', 'style'],
   });
 
-  chrome.storage.local.get({ pattern: 'images-ssl\\.gotestsite\\.com/u/', enabled: true }).then((s) => {
+  chrome.storage.local.get({ pattern: 'images-ssl\\.gotest(site)?\\.com/u/', enabled: true }).then((s) => {
     try {
       regex = new RegExp(s.pattern, 'i');
     } catch {}

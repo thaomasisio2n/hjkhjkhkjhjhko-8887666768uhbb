@@ -9,12 +9,16 @@
   <header>
     <strong>Link Collector</strong>
     <span id="count" class="count">0</span>
+    <span id="users" class="users"></span>
     <label class="toggle"><input type="checkbox" id="enabled"> zbieraj</label>
   </header>
 
-  <button id="copyJson" class="primary">Kopiuj JSON</button>
+  <button id="copyJson" class="primary">Kopiuj JSON (per user)</button>
   <div class="row">
+    <button id="copyFlat">Kopiuj płaski JSON</button>
     <button id="copyUrls">Kopiuj same URL-e</button>
+  </div>
+  <div class="row">
     <button id="download">Pobierz .json</button>
     <button id="clear" class="danger">Wyczyść</button>
   </div>
@@ -29,7 +33,7 @@
     </div>
   </details>
 
-  <ol id="list" class="list" reversed></ol>
+  <ul id="list" class="list"></ul>
 
   <script src="popup.js"></script>
 </body>
