@@ -1,0 +1,56 @@
+# One-command demo: docker compose up --build → http://localhost:8080
+#
+# Only the web server is published. It serves the app and forwards /api to
+# the API over the internal network; the API has no public port at all.
+# Hosting it publicly? Read SECURITY.md first (JWT_SECRET, WEB_ORIGIN,
+# TRUSTED_PROXIES, TLS in front).
+
+# Both containers run as non-root users with no Linux capabilities and a
+# read-only root filesystem; only the database volume and /tmp are writable.
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: [/tmp]
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      # Leave empty to get a random secret per start; set it to keep sessions.
+      JWT_SECRET: ${JWT_SECRET:-}
+      # The public address people open (CSRF check and referral links).
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
+      # Exactly one hop: the web container, which is the only way in and
+      # always sends the visitor's real IP. (Proxies in front of the web
+      # container are configured there, with TRUSTED_PROXIES.)
+      TRUST_PROXY: "1"
+      # Kill switches: set to 1 and restart to pause sign-ups or chat.
+      DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-}
+      DISABLE_CHAT: ${DISABLE_CHAT:-}
+      # npm/npx/tsx caches go to the tmpfs; the root filesystem is read-only.
+      HOME: /tmp
+    volumes:
+      - api-data:/data
+
+  web:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # IPs/CIDRs of a TLS proxy or CDN in front of this container, which
+        # may report the visitor's IP in X-Forwarded-For. Empty: direct.
+        TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  api-data:

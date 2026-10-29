@@ -1,0 +1,3 @@
+# Educational demo, not a real casino: keep it out of search engines.
+User-agent: *
+Disallow: /

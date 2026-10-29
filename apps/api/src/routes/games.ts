@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { fail } from "../lib/http.js";
 
 export default async function gameRoutes(app: FastifyInstance) {
   app.get("/games", async () => {
@@ -13,10 +14,10 @@ export default async function gameRoutes(app: FastifyInstance) {
   // Returns the iframe-launch shape a real game client would need. There is
   // no actual game build behind this in the demo — a separate placeholder
   // page explains that plainly.
-  app.get("/games/:slug/launch", { preHandler: [app.authenticate] }, async (req, reply) => {
+  app.get("/games/:slug/launch", { preHandler: [app.authenticate] }, async (req) => {
     const { slug } = req.params as { slug: string };
-    const game = await app.prisma.game.findUnique({ where: { slug } });
-    if (!game) return reply.code(404).send({ error: "Game not found" });
+    const game = await app.prisma.game.findUnique({ where: { slug: slug.slice(0, 100) } });
+    if (!game) fail("GAME_NOT_FOUND");
 
     return {
       game,
