@@ -65,7 +65,9 @@ jobs:
   e2e:
     name: End-to-end (Playwright)
     needs: checks
-    runs-on: ubuntu-latest
+    # Pinned: Playwright only installs browsers on Ubuntu releases it
+    # supports, and ubuntu-latest moves ahead of it.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
