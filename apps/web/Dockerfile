@@ -20,7 +20,7 @@ RUN API_UPSTREAM="$API_UPSTREAM" TRUSTED_PROXIES="$TRUSTED_PROXIES" \
     sh apps/web/render-nginx-conf.sh apps/web/nginx.conf > /tmp/default.conf
 
 # nginx as an unprivileged user on port 8080.
-FROM nginxinc/nginx-unprivileged:1.30-alpine@sha256:4714e0b1b2577eaa1a6131d07c958b67f0eb68e6d0521e90c6e5287db8cf0bc5
+FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e
 COPY --from=build /tmp/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 8080
